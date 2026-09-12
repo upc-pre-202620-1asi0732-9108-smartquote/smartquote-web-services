@@ -1,0 +1,12 @@
+﻿.git
+.idea
+.vs
+**/bin
+**/obj
+.env
+.env.*
+**/.env
+**/.env.*
+TestResults
+artifacts
+src/SmartQuote.API/App_Data

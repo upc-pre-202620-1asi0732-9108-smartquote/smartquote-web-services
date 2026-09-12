@@ -1,0 +1,242 @@
+@startuml
+title SmartQuote Backend - Purchase Ordering Context
+
+hide empty members
+hide circle
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam shadowing false
+
+package "Shared (generic)" #F2F2F2 {
+    abstract class "AggregateRoot<TId>" as AggregateRoot
+    interface IDomainEvent
+
+    class UserId <<Value Object>> {
+        + Value: UUID
+    }
+
+    class Money <<Value Object>> {
+        + Amount: decimal
+        + Currency: string
+    }
+}
+
+package "PurchaseOrdering.Interfaces" #EADCF8 {
+    class PurchaseOrdersController <<ASP.NET Core Controller>> {
+        + ApproveAndGenerate(runId, quotationId, request): ActionResult
+        + GetById(purchaseOrderId): ActionResult
+        + GetBySimulation(runId): ActionResult
+    }
+}
+
+package "PurchaseOrdering.Application" #DCEEFF {
+    class PurchaseOrderApplicationService <<Application Service>> {
+        + ApproveAndGenerate(command): PurchaseOrder
+        + GetById(purchaseOrderId): PurchaseOrderView
+        + GetBySimulation(runId): PurchaseOrderView
+    }
+
+    class ApprovedDecisionMapper <<Anti-Corruption Mapper>> {
+        + Map(snapshot): ApprovedPurchaseDecision
+    }
+
+    interface IPurchaseOrderRepository <<Port>> {
+        + GetByIdAsync(purchaseOrderId): PurchaseOrder
+        + FindBySimulationAsync(simulationRunId): PurchaseOrder
+        + FindByIdempotencyKeyAsync(key): PurchaseOrder
+        + AddAsync(purchaseOrder): void
+    }
+
+    interface IOrderNumberGenerator <<Port>> {
+        + NextAsync(): OrderNumber
+    }
+}
+
+package "Contract from Evaluation & Simulation" #F2F2F2 {
+    interface ISimulationDecisionReader <<Imported Contract>> {
+        + GetApprovedSnapshot(runId, quotationId): ApprovedSimulationSnapshot
+    }
+
+    class ApprovedSimulationSnapshot <<Immutable DTO>> {
+        + SimulationRunId: string
+        + RequestId: string
+        + SelectedQuotationId: string
+        + SupplierId: string
+        + SupplierName: string
+        + Currency: string
+        + OrderLines: IReadOnlyList
+        + DeliveryTerms: string
+        + InputFingerprint: string
+        + IsCurrent: bool
+    }
+}
+
+package "PurchaseOrdering.Domain" #DFF2E1 {
+    class PurchaseOrder <<Aggregate Root>> {
+        - Id: PurchaseOrderId
+        - OrderNumber: OrderNumber
+        - SourceDecision: SourceSimulationReference
+        - Supplier: SupplierSnapshot
+        - Approval: Approval
+        - Status: PurchaseOrderStatus
+        - Currency: string
+        - DeliveryTerms: DeliveryTerms
+        - CreatedAt: DateTimeOffset
+        + Create(number, decision, approval): PurchaseOrder
+        + AddLine(line): void
+        + Issue(): void
+        + CalculateTotal(): Money
+    }
+
+    class PurchaseOrderLine <<Entity>> {
+        - Id: PurchaseOrderLineId
+        - Description: string
+        - Quantity: decimal
+        - UnitOfMeasure: string
+        - UnitPrice: Money
+        + CalculateSubtotal(): Money
+    }
+
+    class ApprovedPurchaseDecision <<Value Object>> {
+        + SimulationRunId: string
+        + PurchaseRequestId: string
+        + QuotationId: string
+        + Supplier: SupplierSnapshot
+        + Currency: string
+        + Lines: IReadOnlyList
+        + DeliveryTerms: DeliveryTerms
+        + InputFingerprint: string
+    }
+
+    class ApprovedPurchaseLine <<Value Object>> {
+        + Description: string
+        + Quantity: decimal
+        + UnitOfMeasure: string
+        + UnitPrice: Money
+    }
+
+    class SupplierSnapshot <<Value Object>> {
+        + SupplierId: string
+        + BusinessName: string
+        + TaxIdentifier: string
+    }
+
+    class Approval <<Value Object>> {
+        + ApprovedBy: UserId
+        + ApprovedAt: DateTimeOffset
+        + IdempotencyKey: string
+    }
+
+    class SourceSimulationReference <<Value Object>> {
+        + SimulationRunId: string
+        + PurchaseRequestId: string
+        + QuotationId: string
+        + InputFingerprint: string
+    }
+
+    class DeliveryTerms <<Value Object>> {
+        + LeadTimeDays: int
+        + Conditions: string
+        + Destination: string
+    }
+
+    class OrderNumber <<Value Object>> {
+        + Value: string
+    }
+
+    enum PurchaseOrderStatus {
+        Issued
+        Cancelled
+    }
+
+    class PurchaseOrderGenerator <<Domain Service>> {
+        + Generate(decision, approval, orderNumber): PurchaseOrder
+    }
+
+    class PurchaseOrderIssued <<Domain Event>> {
+        + PurchaseOrderId: PurchaseOrderId
+        + SimulationRunId: string
+        + PurchaseRequestId: string
+        + OccurredAt: DateTimeOffset
+    }
+}
+
+package "PurchaseOrdering.Infrastructure" #FFE4CC {
+    class PostgreSqlPurchaseOrderRepository <<EF Core Adapter>> {
+        + GetByIdAsync(purchaseOrderId): PurchaseOrder
+        + FindBySimulationAsync(simulationRunId): PurchaseOrder
+        + FindByIdempotencyKeyAsync(key): PurchaseOrder
+        + AddAsync(purchaseOrder): void
+    }
+
+    class SequentialOrderNumberGenerator <<Infrastructure Service>> {
+        + NextAsync(): OrderNumber
+    }
+}
+
+PurchaseOrder --|> AggregateRoot
+PurchaseOrderIssued ..|> IDomainEvent
+
+PurchaseOrder *-- "1..*" PurchaseOrderLine
+PurchaseOrder --> SupplierSnapshot
+PurchaseOrder --> Approval
+PurchaseOrder --> SourceSimulationReference
+PurchaseOrder --> DeliveryTerms
+PurchaseOrder --> OrderNumber
+PurchaseOrder --> PurchaseOrderStatus
+
+PurchaseOrderLine --> Money
+
+ApprovedPurchaseDecision *-- "1..*" ApprovedPurchaseLine
+ApprovedPurchaseDecision --> SupplierSnapshot
+ApprovedPurchaseDecision --> DeliveryTerms
+ApprovedPurchaseLine --> Money
+
+PurchaseOrderGenerator --> ApprovedPurchaseDecision
+PurchaseOrderGenerator --> Approval
+PurchaseOrderGenerator --> PurchaseOrder : creates
+PurchaseOrder ..> PurchaseOrderIssued : raises
+
+PurchaseOrdersController --> PurchaseOrderApplicationService
+
+PurchaseOrderApplicationService --> IPurchaseOrderRepository
+PurchaseOrderApplicationService --> ISimulationDecisionReader
+PurchaseOrderApplicationService --> ApprovedDecisionMapper
+PurchaseOrderApplicationService --> PurchaseOrderGenerator
+PurchaseOrderApplicationService --> IOrderNumberGenerator
+
+ApprovedDecisionMapper --> ApprovedSimulationSnapshot
+ApprovedDecisionMapper --> ApprovedPurchaseDecision : creates
+
+PostgreSqlPurchaseOrderRepository ..|> IPurchaseOrderRepository
+SequentialOrderNumberGenerator ..|> IOrderNumberGenerator
+
+note right of PurchaseOrderApplicationService
+  Flujo de generación:
+  1. Comprueba la autorización del usuario.
+  2. Busca una orden previa por clave idempotente.
+  3. Obtiene una decisión vigente.
+  4. Mapea el contrato al modelo local.
+  5. Genera y persiste la orden.
+  6. Ante una repetición devuelve la existente.
+end note
+
+note right of PurchaseOrder
+  Invariantes:
+  - Debe contener al menos una línea.
+  - Todas las líneas usan la misma moneda.
+  - Conserva la solicitud, cotización y
+    simulación que originaron la decisión.
+  - Una decisión solo produce una orden.
+end note
+
+note bottom of PostgreSqlPurchaseOrderRepository
+  La base de datos debe tener restricciones
+  únicas para SimulationRunId e IdempotencyKey.
+
+  La comprobación de aplicación y la restricción
+  de persistencia protegen contra concurrencia.
+end note
+
+@enduml

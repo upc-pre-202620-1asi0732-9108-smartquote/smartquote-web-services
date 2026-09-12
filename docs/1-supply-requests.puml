@@ -1,0 +1,216 @@
+@startuml
+title SmartQuote Backend - Supply Requests Context
+
+hide empty members
+hide circle
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam shadowing false
+
+package "Shared (generic)" #F2F2F2 {
+    abstract class "AggregateRoot<TId>" as AggregateRoot
+    interface IDomainEvent
+
+    class UserId <<Value Object>> {
+        + Value: UUID
+    }
+}
+
+package "SupplyRequests.Interfaces" #EADCF8 {
+    class PurchaseRequestsController <<ASP.NET Core Controller>> {
+        + Register(request): ActionResult
+        + GetById(requestId): ActionResult
+        + GetHistory(requestId): ActionResult
+        + ChangeStatus(requestId, request): ActionResult
+    }
+}
+
+package "SupplyRequests.Application" #DCEEFF {
+    class PurchaseRequestCommandService <<Application Service>> {
+        + Register(command): PurchaseRequestId
+        + AddAttachment(command): void
+        + ChangeStatus(command): void
+    }
+
+    class PurchaseRequestQueryService <<Application Service>> {
+        + GetById(requestId): PurchaseRequestView
+        + GetHistory(requestId): RequestHistoryView
+        + GetSnapshot(requestId): PurchaseRequestSnapshot
+    }
+
+    interface IPurchaseRequestRepository <<Port>> {
+        + GetByIdAsync(requestId): PurchaseRequest
+        + AddAsync(request): void
+        + UpdateAsync(request): void
+    }
+
+    interface IRequestNotificationPort <<Port>> {
+        + NotifyStatusChanged(event): void
+    }
+
+    interface IPurchaseRequestSnapshotProvider <<Published Contract>> {
+        + GetSnapshot(requestId): PurchaseRequestSnapshot
+    }
+
+    class PurchaseRequestSnapshot <<Immutable DTO>> {
+        + RequestId: string
+        + Version: long
+        + Status: string
+        + RequesterId: string
+        + RequiredDate: DateOnly
+        + Priority: string
+        + Items: IReadOnlyList
+    }
+
+    class RequestStatusChangedNotificationHandler <<Event Handler>> {
+        + Handle(event): void
+    }
+}
+
+package "SupplyRequests.Domain" #DFF2E1 {
+    class PurchaseRequest <<Aggregate Root>> {
+        - Id: PurchaseRequestId
+        - RequesterId: UserId
+        - RequiredDate: DateOnly
+        - Priority: RequestPriority
+        - Status: RequestStatus
+        - Version: long
+        - CreatedAt: DateTimeOffset
+        + Create(requesterId, requiredDate, priority): PurchaseRequest
+        + AddItem(item): void
+        + AddAttachment(attachment): void
+        + ChangeStatus(nextStatus, changedBy, reason): void
+    }
+
+    class RequestedItem <<Entity>> {
+        - Id: RequestedItemId
+        - Description: string
+        - Quantity: decimal
+        - UnitOfMeasure: string
+        + AddRequirement(requirement): void
+    }
+
+    class TechnicalRequirement <<Entity>> {
+        - Id: TechnicalRequirementId
+        + Name: string
+        + Operator: ComparisonOperator
+        + ExpectedValue: string
+        + UnitOfMeasure: string
+        + IsMandatory: bool
+    }
+
+    class RequestAttachment <<Entity>> {
+        - Id: RequestAttachmentId
+        - FileName: string
+        - ContentType: string
+        - StorageKey: string
+        - UploadedBy: UserId
+        - UploadedAt: DateTimeOffset
+    }
+
+    class RequestStatusEntry <<Entity>> {
+        - FromStatus: RequestStatus
+        - ToStatus: RequestStatus
+        - ChangedBy: UserId
+        - ChangedAt: DateTimeOffset
+        - Reason: string
+    }
+
+    enum RequestPriority {
+        Normal
+        High
+        Emergency
+    }
+
+    enum RequestStatus {
+        Draft
+        Submitted
+        UnderReview
+        QuotationCollection
+        Evaluation
+        Approved
+        Ordered
+        Rejected
+        Cancelled
+    }
+
+    enum ComparisonOperator {
+        Equals
+        GreaterThanOrEqual
+        LessThanOrEqual
+        Contains
+    }
+
+    class PurchaseRequestSubmitted <<Domain Event>> {
+        + RequestId: PurchaseRequestId
+        + OccurredAt: DateTimeOffset
+    }
+
+    class PurchaseRequestStatusChanged <<Domain Event>> {
+        + RequestId: PurchaseRequestId
+        + RequesterId: UserId
+        + PreviousStatus: RequestStatus
+        + NewStatus: RequestStatus
+        + Reason: string
+        + OccurredAt: DateTimeOffset
+    }
+}
+
+package "SupplyRequests.Infrastructure" #FFE4CC {
+    class PostgreSqlPurchaseRequestRepository <<EF Core Adapter>> {
+        + GetByIdAsync(requestId): PurchaseRequest
+        + AddAsync(request): void
+        + UpdateAsync(request): void
+    }
+
+    class InAppRequestNotificationAdapter <<Notification Adapter>> {
+        + NotifyStatusChanged(event): void
+    }
+}
+
+PurchaseRequest --|> AggregateRoot
+PurchaseRequestSubmitted ..|> IDomainEvent
+PurchaseRequestStatusChanged ..|> IDomainEvent
+
+PurchaseRequest *-- "1..*" RequestedItem
+RequestedItem *-- "1..*" TechnicalRequirement
+PurchaseRequest *-- "0..*" RequestAttachment
+PurchaseRequest *-- "1..*" RequestStatusEntry
+PurchaseRequest --> RequestPriority
+PurchaseRequest --> RequestStatus
+TechnicalRequirement --> ComparisonOperator
+
+PurchaseRequest ..> PurchaseRequestSubmitted : raises
+PurchaseRequest ..> PurchaseRequestStatusChanged : raises
+
+PurchaseRequestsController --> PurchaseRequestCommandService
+PurchaseRequestsController --> PurchaseRequestQueryService
+
+PurchaseRequestCommandService --> IPurchaseRequestRepository
+PurchaseRequestQueryService --> IPurchaseRequestRepository
+PurchaseRequestQueryService ..|> IPurchaseRequestSnapshotProvider
+
+RequestStatusChangedNotificationHandler --> PurchaseRequestStatusChanged
+RequestStatusChangedNotificationHandler --> IRequestNotificationPort
+
+PostgreSqlPurchaseRequestRepository ..|> IPurchaseRequestRepository
+InAppRequestNotificationAdapter ..|> IRequestNotificationPort
+
+note right of PurchaseRequest
+  Invariantes:
+  - Debe contener al menos un ítem.
+  - Cada ítem debe tener requisitos obligatorios.
+  - La fecha requerida no puede ser anterior
+    a la fecha de registro.
+  - Los cambios de estado conservan historial.
+  - Cada modificación incrementa Version.
+end note
+
+note bottom of PurchaseRequestSnapshot
+  Contrato público de solo lectura.
+  Los demás contextos reciben esta copia;
+  no acceden al agregado PurchaseRequest.
+end note
+
+@enduml

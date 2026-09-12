@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../SmartQuote.Shared/SmartQuote.Shared.csproj" />
+    <ProjectReference Include="../SmartQuote.Modules.SupplyRequests/SmartQuote.Modules.SupplyRequests.csproj" />
+    <ProjectReference Include="../SmartQuote.Modules.QuotationIntake/SmartQuote.Modules.QuotationIntake.csproj" />
+  </ItemGroup>
+
+</Project>

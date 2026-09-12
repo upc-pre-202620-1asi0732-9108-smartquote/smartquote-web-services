@@ -1,0 +1,294 @@
+@startuml
+title SmartQuote Backend - Quotation Intake Context
+
+hide empty members
+hide circle
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam shadowing false
+
+package "Shared (generic)" #F2F2F2 {
+    abstract class "AggregateRoot<TId>" as AggregateRoot
+    interface IDomainEvent
+
+    class UserId <<Value Object>> {
+        + Value: UUID
+    }
+
+    class Money <<Value Object>> {
+        + Amount: decimal
+        + Currency: string
+    }
+}
+
+package "QuotationIntake.Interfaces" #EADCF8 {
+    class PoultryQuotesController <<ASP.NET Core Controller>> {
+        + Upload(requestId, supplier, files): ActionResult
+        + Process(quotationId): ActionResult
+        + GetExtraction(quotationId): ActionResult
+        + Confirm(quotationId): ActionResult
+        + CorrectField(quotationId, fieldId, request): ActionResult
+    }
+}
+
+package "QuotationIntake.Application" #DCEEFF {
+    class QuoteExtractionService <<Application Service>> {
+        + Upload(command): PoultryQuoteId
+        + Process(quotationId): void
+        + Confirm(quotationId, confirmedBy): void
+        + CorrectField(command): void
+        + GetVerifiedSnapshots(requestId): IReadOnlyList
+    }
+
+    interface IPoultryQuoteRepository <<Port>> {
+        + GetByIdAsync(quotationId): PoultryQuote
+        + ExistsByRequestAndHashAsync(requestId, hash): bool
+        + AddAsync(quotation): void
+        + UpdateAsync(quotation): void
+    }
+
+    interface IQuoteExtractionAgent <<Port>> {
+        + Extract(document): ExtractionResult
+    }
+
+    interface IPurchaseRequestReferenceReader <<Port>> {
+        + IsActive(requestId): bool
+    }
+
+    interface IVerifiedQuotationSnapshotProvider <<Published Contract>> {
+        + GetVerifiedForRequest(requestId): IReadOnlyList
+    }
+
+    class ExtractionResult <<Agent DTO>> {
+        + Supplier: string
+        + ValidUntil: DateOnly
+        + Currency: string
+        + DeliveryLeadTimeDays: int
+        + Lines: IReadOnlyList
+        + Fields: IReadOnlyList
+    }
+
+    class ExtractedFieldResult <<Agent DTO>> {
+        + FieldPath: string
+        + Value: string
+        + Confidence: decimal
+        + PageNumber: int
+        + TextReference: string
+        + IsResolved: bool
+    }
+
+    class VerifiedQuotationSnapshot <<Immutable DTO>> {
+        + QuotationId: string
+        + Version: long
+        + PurchaseRequestId: string
+        + Supplier: string
+        + Currency: string
+        + Lines: IReadOnlyList
+        + DeliveryLeadTimeDays: int
+        + VerifiedAt: DateTimeOffset
+    }
+}
+
+package "QuotationIntake.Domain" #DFF2E1 {
+    class PoultryQuote <<Aggregate Root>> {
+        - Id: PoultryQuoteId
+        - RequestReference: PurchaseRequestReference
+        - Supplier: SupplierReference
+        - SourceDocument: SourceDocument
+        - ValidUntil: DateOnly
+        - Currency: string
+        - DeliveryLeadTimeDays: int
+        - Status: QuotationStatus
+        - Version: long
+        + Create(requestReference, supplier, document): PoultryQuote
+        + BeginExtraction(): void
+        + ApplyExtraction(data): void
+        + CorrectField(fieldId, value, author, reason): void
+        + Confirm(confirmedBy): void
+        + Reject(reason): void
+        + HasUnresolvedRequiredFields(): bool
+    }
+
+    class QuotationLine <<Entity>> {
+        - Id: QuotationLineId
+        - RequestedItemId: string?
+        - LineNumber: int
+        - Description: string
+        - Quantity: decimal
+        - UnitOfMeasure: string
+        - UnitPrice: decimal?
+        + AsMoney(currency): Money
+        + CalculateSubtotal(currency): Money
+        + AddSpecification(specification): void
+    }
+
+    class QuotedSpecification <<Value Object>> {
+        + Name: string
+        + Value: string
+        + UnitOfMeasure: string
+    }
+
+    class ExtractedField <<Entity>> {
+        - Id: ExtractedFieldId
+        - FieldPath: string
+        - OriginalValue: string
+        - CurrentValue: string
+        - IsRequired: bool
+        - Confidence: ConfidenceScore
+        - Source: SourceReference
+        - Status: FieldResolutionStatus
+        + MarkUnresolved(): void
+        + Confirm(): void
+        + Correct(value, author, reason): void
+    }
+
+    class FieldCorrection <<Entity>> {
+        - PreviousValue: string
+        - CorrectedValue: string
+        - CorrectedBy: UserId
+        - CorrectedAt: DateTimeOffset
+        - Reason: string
+    }
+
+    class PurchaseRequestReference <<Value Object>> {
+        + RequestId: string
+    }
+
+    class SupplierReference <<Value Object>> {
+        + SupplierId: string
+        + BusinessName: string
+        + TaxIdentifier: string
+    }
+
+    class SourceDocument <<Value Object>> {
+        + FileName: string
+        + ContentType: string
+        + StorageKey: string
+        + SHA256Hash: string
+    }
+
+    class ConfidenceScore <<Value Object>> {
+        + Value: decimal
+        + IsAbove(threshold): bool
+    }
+
+    class SourceReference <<Value Object>> {
+        + PageNumber: int
+        + TextReference: string
+    }
+
+    class ExtractedQuotationData <<Value Object>> {
+        + Supplier: SupplierReference
+        + ValidUntil: DateOnly
+        + Currency: string
+        + DeliveryLeadTimeDays: int
+        + Lines: IReadOnlyList
+        + Fields: IReadOnlyList
+    }
+
+    enum QuotationStatus {
+        Uploaded
+        Processing
+        RequiresVerification
+        Verified
+        Rejected
+    }
+
+    enum FieldResolutionStatus {
+        Resolved
+        Unresolved
+        Corrected
+        Confirmed
+    }
+
+    class QuotationUploaded <<Domain Event>> {
+        + QuotationId: PoultryQuoteId
+        + RequestId: string
+        + OccurredAt: DateTimeOffset
+    }
+
+    class QuotationVerified <<Domain Event>> {
+        + QuotationId: PoultryQuoteId
+        + RequestId: string
+        + Version: long
+        + OccurredAt: DateTimeOffset
+    }
+}
+
+package "QuotationIntake.Infrastructure" #FFE4CC {
+    class PostgreSqlPoultryQuoteRepository <<EF Core Adapter>> {
+        + GetByIdAsync(quotationId): PoultryQuote
+        + ExistsByRequestAndHashAsync(requestId, hash): bool
+        + AddAsync(quotation): void
+        + UpdateAsync(quotation): void
+    }
+
+    class SemanticKernelAgentConnector <<AI Adapter>> {
+        + Extract(document): ExtractionResult
+        - BuildStructuredPrompt(document): string
+        - ValidateStructuredOutput(response): ExtractionResult
+    }
+
+    class SupplyRequestReferenceAdapter <<In-Process Adapter>> {
+        + IsActive(requestId): bool
+    }
+
+    class OpenAIPlatform <<External API>>
+    class SupplyRequestsPublicContract <<External Contract>>
+}
+
+PoultryQuote --|> AggregateRoot
+QuotationUploaded ..|> IDomainEvent
+QuotationVerified ..|> IDomainEvent
+
+PoultryQuote *-- "1..*" QuotationLine
+QuotationLine *-- "0..*" QuotedSpecification
+PoultryQuote *-- "1..*" ExtractedField
+ExtractedField *-- "0..*" FieldCorrection
+
+PoultryQuote --> PurchaseRequestReference
+PoultryQuote --> SupplierReference
+PoultryQuote --> SourceDocument
+PoultryQuote --> QuotationStatus
+ExtractedField --> ConfidenceScore
+ExtractedField --> SourceReference
+ExtractedField --> FieldResolutionStatus
+QuotationLine ..> Money : reconstruye con la moneda de la cotización
+
+PoultryQuote ..> QuotationUploaded : raises
+PoultryQuote ..> QuotationVerified : raises
+
+PoultryQuotesController --> QuoteExtractionService
+QuoteExtractionService --> IPoultryQuoteRepository
+QuoteExtractionService --> IQuoteExtractionAgent
+QuoteExtractionService --> IPurchaseRequestReferenceReader
+QuoteExtractionService ..|> IVerifiedQuotationSnapshotProvider
+QuoteExtractionService --> ExtractionResult : maps
+QuoteExtractionService --> ExtractedQuotationData : creates
+
+PostgreSqlPoultryQuoteRepository ..|> IPoultryQuoteRepository
+SemanticKernelAgentConnector ..|> IQuoteExtractionAgent
+SupplyRequestReferenceAdapter ..|> IPurchaseRequestReferenceReader
+
+SemanticKernelAgentConnector --> OpenAIPlatform : HTTPS / Structured Outputs
+SupplyRequestReferenceAdapter --> SupplyRequestsPublicContract
+
+note right of PoultryQuote
+  Invariantes:
+  - La solicitud asociada debe estar activa.
+  - El hash evita documentos duplicados
+    para la misma solicitud.
+  - Una cotización no puede verificarse
+    si mantiene campos críticos no resueltos.
+  - Toda corrección conserva valor original,
+    autor, fecha y justificación.
+end note
+
+note bottom of SemanticKernelAgentConnector
+  La IA propone datos estructurados.
+  No modifica directamente el agregado
+  ni reemplaza la verificación humana.
+end note
+
+@enduml

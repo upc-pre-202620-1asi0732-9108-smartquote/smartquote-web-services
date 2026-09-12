@@ -1,0 +1,351 @@
+@startuml
+title SmartQuote Backend - Evaluation & Simulation Context (Core Domain)
+
+hide empty members
+hide circle
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam shadowing false
+
+package "Shared (generic)" #F2F2F2 {
+    abstract class "AggregateRoot<TId>" as AggregateRoot
+    interface IDomainEvent
+
+    class UserId <<Value Object>> {
+        + Value: UUID
+    }
+
+    class Money <<Value Object>> {
+        + Amount: decimal
+        + Currency: string
+    }
+}
+
+package "EvaluationSimulation.Interfaces" #EADCF8 {
+    class SimulationsController <<ASP.NET Core Controller>> {
+        + CreateScenario(request): ActionResult
+        + CreateScenarioVersion(scenarioId, request): ActionResult
+        + RunSimulation(scenarioId): ActionResult
+        + GetResult(simulationRunId): ActionResult
+    }
+}
+
+package "EvaluationSimulation.Application" #DCEEFF {
+    class ScenarioApplicationService <<Application Service>> {
+        + Create(command): EvaluationScenarioId
+        + CreateNextVersion(command): EvaluationScenarioId
+        + GetCurrentForRequest(requestId): EvaluationScenarioView
+    }
+
+    class SimulationApplicationService <<Application Service>> {
+        + Run(command): SimulationRunId
+        + GetResult(simulationRunId): SimulationResultView
+        + GetApprovedSnapshot(runId, quotationId): ApprovedSimulationSnapshot
+    }
+
+    class SimulationValidityService <<Application Service>> {
+        + EnsureCurrent(simulationRun): void
+        + CalculateCurrentFingerprint(run): InputFingerprint
+    }
+
+    class EvaluationInputAssembler <<Anti-Corruption Mapper>> {
+        + Assemble(request, quotations): EvaluationDataset
+    }
+
+    interface IEvaluationScenarioRepository <<Port>> {
+        + GetByIdAsync(scenarioId): EvaluationScenario
+        + GetCurrentForRequestAsync(requestId): EvaluationScenario
+        + AddAsync(scenario): void
+    }
+
+    interface ISimulationRunRepository <<Port>> {
+        + GetByIdAsync(runId): SimulationRun
+        + FindByFingerprintAsync(fingerprint): SimulationRun
+        + AddAsync(run): void
+    }
+
+    interface IPurchaseRequestSnapshotReader <<Port>> {
+        + GetCurrent(requestId): PurchaseRequestSnapshot
+    }
+
+    interface IVerifiedQuotationSnapshotReader <<Port>> {
+        + GetCurrentForRequest(requestId): IReadOnlyList
+    }
+
+    interface ISimulationDecisionReader <<Published Contract>> {
+        + GetApprovedSnapshot(runId, quotationId): ApprovedSimulationSnapshot
+    }
+
+    class PurchaseRequestSnapshot <<Imported DTO>> {
+        + RequestId: string
+        + Version: long
+        + RequiredDate: DateOnly
+        + Priority: string
+        + Items: IReadOnlyList
+    }
+
+    class VerifiedQuotationSnapshot <<Imported DTO>> {
+        + QuotationId: string
+        + Version: long
+        + Supplier: string
+        + Currency: string
+        + Lines: IReadOnlyList
+        + DeliveryLeadTimeDays: int
+    }
+
+    class ApprovedSimulationSnapshot <<Immutable Published DTO>> {
+        + SimulationRunId: string
+        + RequestId: string
+        + SelectedQuotationId: string
+        + Supplier: string
+        + Currency: string
+        + OrderLines: IReadOnlyList
+        + DeliveryTerms: string
+        + InputFingerprint: string
+        + IsCurrent: bool
+    }
+}
+
+package "EvaluationSimulation.Domain" #DFF2E1 {
+    class EvaluationScenario <<Aggregate Root>> {
+        - Id: EvaluationScenarioId
+        - RequestId: string
+        - Version: int
+        - Status: ScenarioStatus
+        - CreatedBy: UserId
+        - CreatedAt: DateTimeOffset
+        + Create(requestId, createdBy): EvaluationScenario
+        + AddCriterion(criterion): void
+        + Activate(): void
+        + CreateNextVersion(): EvaluationScenario
+        + ValidateWeights(): void
+    }
+
+    class EvaluationCriterion <<Entity>> {
+        - Id: EvaluationCriterionId
+        - Name: string
+        - TargetField: string
+        - Category: CriterionCategory
+        - Mode: CriterionMode
+        - Operator: ComparisonOperator
+        - ExpectedValue: string
+        - UnitOfMeasure: string
+        - Weight: decimal
+        + Evaluate(input): CriterionResult
+    }
+
+    class SimulationRun <<Aggregate Root>> {
+        - Id: SimulationRunId
+        - ScenarioId: EvaluationScenarioId
+        - CriteriaVersion: int
+        - InputFingerprint: InputFingerprint
+        - ExecutedAt: DateTimeOffset
+        + AddEvaluation(evaluation): void
+        + DefineRecommendation(): void
+        + GetEvaluation(quotationId): QuotationEvaluation
+        + IsBasedOn(fingerprint): bool
+    }
+
+    class QuotationEvaluation <<Entity>> {
+        - QuotationId: string
+        - IsEligible: bool
+        - TotalScore: Score
+        - Rank: int
+        + Exclude(reason): void
+        + AddCriterionResult(result): void
+        + CalculateTotalScore(): void
+    }
+
+    class CriterionResult <<Value Object>> {
+        + CriterionId: EvaluationCriterionId
+        + Passed: bool
+        + NormalizedScore: decimal
+        + WeightedContribution: decimal
+        + Explanation: string
+    }
+
+    class ExclusionReason <<Value Object>> {
+        + CriterionId: EvaluationCriterionId
+        + Code: string
+        + Explanation: string
+    }
+
+    class Recommendation <<Value Object>> {
+        + QuotationId: string
+        + Score: Score
+        + Explanation: string
+    }
+
+    class Score <<Value Object>> {
+        + Value: decimal
+    }
+
+    class InputFingerprint <<Value Object>> {
+        + Value: string
+        + Matches(other): bool
+    }
+
+    class EvaluationDataset <<Value Object>> {
+        + Request: RequestEvaluationSnapshot
+        + Quotations: IReadOnlyList
+        + CalculateFingerprint(): InputFingerprint
+    }
+
+    class RequestEvaluationSnapshot <<Value Object>> {
+        + RequestId: string
+        + Version: long
+        + RequiredDate: DateOnly
+        + Priority: string
+        + Requirements: IReadOnlyList
+    }
+
+    class QuotationEvaluationSnapshot <<Value Object>> {
+        + QuotationId: string
+        + Version: long
+        + Supplier: string
+        + Lines: IReadOnlyList
+        + TotalPrice(): Money
+        + DeliveryLeadTimeDays: int
+        + Specifications: IReadOnlyList
+    }
+
+    class SimulationEngine <<Domain Service>> {
+        + Run(scenario, dataset): SimulationRun
+        - ApplyMandatoryCriteria(scenario, dataset): IReadOnlyList
+        - ScoreEligibleQuotations(scenario, dataset): IReadOnlyList
+        - Rank(evaluations): Recommendation
+    }
+
+    enum CriterionCategory {
+        Price
+        DeliveryTime
+        TechnicalCompliance
+    }
+
+    enum CriterionMode {
+        Mandatory
+        Weighted
+    }
+
+    enum ComparisonOperator {
+        Equals
+        GreaterThanOrEqual
+        LessThanOrEqual
+        Contains
+    }
+
+    enum ScenarioStatus {
+        Draft
+        Active
+        Superseded
+    }
+
+    class SimulationCompleted <<Domain Event>> {
+        + SimulationRunId: SimulationRunId
+        + ScenarioId: EvaluationScenarioId
+        + RecommendedQuotationId: string
+        + InputFingerprint: string
+        + OccurredAt: DateTimeOffset
+    }
+}
+
+package "EvaluationSimulation.Infrastructure" #FFE4CC {
+    class PostgreSqlEvaluationScenarioRepository <<EF Core Adapter>>
+    class PostgreSqlSimulationRunRepository <<EF Core Adapter>>
+
+    class SupplyRequestSnapshotAdapter <<In-Process Adapter>> {
+        + GetCurrent(requestId): PurchaseRequestSnapshot
+    }
+
+    class VerifiedQuotationSnapshotAdapter <<In-Process Adapter>> {
+        + GetCurrentForRequest(requestId): IReadOnlyList
+    }
+
+    class SupplyRequestsPublicContract <<External Contract>>
+    class QuotationIntakePublicContract <<External Contract>>
+}
+
+EvaluationScenario --|> AggregateRoot
+SimulationRun --|> AggregateRoot
+SimulationCompleted ..|> IDomainEvent
+
+EvaluationScenario *-- "1..*" EvaluationCriterion
+EvaluationCriterion --> CriterionCategory
+EvaluationCriterion --> CriterionMode
+EvaluationCriterion --> ComparisonOperator
+EvaluationScenario --> ScenarioStatus
+
+SimulationRun *-- "2..*" QuotationEvaluation
+SimulationRun o-- "0..1" Recommendation
+SimulationRun --> InputFingerprint
+QuotationEvaluation *-- "1..*" CriterionResult
+QuotationEvaluation *-- "0..*" ExclusionReason
+QuotationEvaluation --> Score
+Recommendation --> Score
+
+EvaluationDataset *-- "1" RequestEvaluationSnapshot
+EvaluationDataset *-- "2..*" QuotationEvaluationSnapshot
+QuotationEvaluationSnapshot ..> Money : calcula desde Lines
+
+SimulationEngine --> EvaluationScenario
+SimulationEngine --> EvaluationDataset
+SimulationEngine --> SimulationRun : creates
+SimulationRun ..> SimulationCompleted : raises
+
+SimulationsController --> ScenarioApplicationService
+SimulationsController --> SimulationApplicationService
+
+ScenarioApplicationService --> IEvaluationScenarioRepository
+
+SimulationApplicationService --> IEvaluationScenarioRepository
+SimulationApplicationService --> ISimulationRunRepository
+SimulationApplicationService --> IPurchaseRequestSnapshotReader
+SimulationApplicationService --> IVerifiedQuotationSnapshotReader
+SimulationApplicationService --> EvaluationInputAssembler
+SimulationApplicationService --> SimulationEngine
+SimulationApplicationService --> SimulationValidityService
+SimulationApplicationService ..|> ISimulationDecisionReader
+
+EvaluationInputAssembler --> PurchaseRequestSnapshot
+EvaluationInputAssembler --> VerifiedQuotationSnapshot
+EvaluationInputAssembler --> EvaluationDataset
+
+SimulationValidityService --> IPurchaseRequestSnapshotReader
+SimulationValidityService --> IVerifiedQuotationSnapshotReader
+
+PostgreSqlEvaluationScenarioRepository ..|> IEvaluationScenarioRepository
+PostgreSqlSimulationRunRepository ..|> ISimulationRunRepository
+SupplyRequestSnapshotAdapter ..|> IPurchaseRequestSnapshotReader
+VerifiedQuotationSnapshotAdapter ..|> IVerifiedQuotationSnapshotReader
+
+SupplyRequestSnapshotAdapter --> SupplyRequestsPublicContract
+VerifiedQuotationSnapshotAdapter --> QuotationIntakePublicContract
+
+note right of EvaluationScenario
+  Invariantes:
+  - Debe existir al menos un criterio.
+  - Los criterios ponderados deben sumar 100%.
+  - Los pesos no pueden ser negativos.
+  - Una modificación crea una nueva versión;
+    no sobrescribe la versión utilizada.
+end note
+
+note right of SimulationEngine
+  Orden de evaluación:
+  1. Aplica reglas obligatorias.
+  2. Excluye ofertas no elegibles.
+  3. Normaliza criterios ponderados.
+  4. Calcula contribuciones y puntaje.
+  5. Ordena y genera la recomendación.
+end note
+
+note bottom of SimulationRun
+  InputFingerprint identifica las versiones
+  de solicitud, cotizaciones y criterios.
+
+  Con el mismo fingerprint y las mismas reglas,
+  el resultado debe ser determinista.
+end note
+
+@enduml
