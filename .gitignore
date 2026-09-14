@@ -8,6 +8,8 @@ obj/
 *.DotSettings.user
 appsettings.*.local.json
 .env
+.env.*
+!.env.example
 src/SmartQuote.API/App_Data/
 artifacts/
 TestResults/

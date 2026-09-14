@@ -22,8 +22,12 @@ Es la forma más rápida de levantar API y PostgreSQL.
 ```powershell
 Copy-Item .env.example .env
 # Edite .env y reemplace los valores replace-me.
-docker compose up --build
+.\scripts\Start-SmartQuote.ps1
 ```
+
+El script levanta los contenedores en segundo plano, espera a que la API esté
+saludable y abre Swagger automáticamente. Si solo desea iniciar Docker sin
+abrir el navegador, use `docker compose up --build -d`.
 
 - Swagger: `http://localhost:8080/swagger`
 - API: `http://localhost:8080`
@@ -64,7 +68,7 @@ dotnet user-secrets set "OpenAI:ApiKey" "YOUR_OPENAI_API_KEY" --project src/Smar
 dotnet user-secrets set "OpenAI:Model" "gpt-4.1-mini" --project src/SmartQuote.API
 ```
 
-Con Docker Compose, configure `AI__Provider=OpenAI` y `OpenAI__ApiKey` exclusivamente en su `.env` local. Ese archivo está ignorado por Git y Docker no lo incluye en la imagen.
+Con Docker Compose, copie `.env.example` a `.env` y configure allí `AI__Provider=OpenAI` y `OpenAI__ApiKey`. Ese archivo está ignorado por Git y Docker no lo incluye en la imagen; Compose solo inyecta el valor en el contenedor durante la ejecución.
 
 ## Documentación de diagramas
 
