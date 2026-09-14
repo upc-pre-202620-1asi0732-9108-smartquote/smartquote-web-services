@@ -17,4 +17,8 @@
     <ProjectReference Include="../SmartQuote.Modules.QuotationIntake/SmartQuote.Modules.QuotationIntake.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Infrastructure\Persistence\EFC\Migrations\" />
+  </ItemGroup>
+
 </Project>
