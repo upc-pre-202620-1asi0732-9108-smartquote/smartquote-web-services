@@ -1,5 +1,5 @@
 using SmartQuote.API.Shared.Domain;
 
-namespace SmartQuote.API.EvaluationSimulation.Application.Ports;
+namespace SmartQuote.Modules.EvaluationSimulation.Application.Ports;
 
 public interface IEvaluationSimulationUnitOfWork : IUnitOfWork;

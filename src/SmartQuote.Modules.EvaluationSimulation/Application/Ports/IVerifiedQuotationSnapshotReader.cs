@@ -1,6 +1,6 @@
-using SmartQuote.API.QuotationIntake.Application.OutboundServices;
+using SmartQuote.Modules.QuotationIntake.Application.OutboundServices;
 
-namespace SmartQuote.API.EvaluationSimulation.Application.Ports;
+namespace SmartQuote.Modules.EvaluationSimulation.Application.Ports;
 
 public interface IVerifiedQuotationSnapshotReader
 {

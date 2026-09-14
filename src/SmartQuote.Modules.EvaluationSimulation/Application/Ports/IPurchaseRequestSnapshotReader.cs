@@ -1,6 +1,6 @@
 using SmartQuote.API.SupplyRequests.Application.OutboundServices;
 
-namespace SmartQuote.API.EvaluationSimulation.Application.Ports;
+namespace SmartQuote.Modules.EvaluationSimulation.Application.Ports;
 
 public interface IPurchaseRequestSnapshotReader
 {
