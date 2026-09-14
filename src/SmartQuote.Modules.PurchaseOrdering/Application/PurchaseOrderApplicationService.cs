@@ -1,15 +1,15 @@
-using SmartQuote.API.Shared.Domain;
-using SmartQuote.API.Shared.Application.Security;
-using SmartQuote.API.Shared.Domain.Model.ValueObjects;
-using SmartQuote.API.EvaluationSimulation.Application.OutboundServices;
 using SmartQuote.API.PurchaseOrdering.Application.Ports;
 using SmartQuote.API.PurchaseOrdering.Application.Views;
 using SmartQuote.API.PurchaseOrdering.Domain.Model.Aggregates;
 using SmartQuote.API.PurchaseOrdering.Domain.Model.Commands;
 using SmartQuote.API.PurchaseOrdering.Domain.Model.ValueObjects;
 using SmartQuote.API.PurchaseOrdering.Domain.Services;
+using SmartQuote.API.Shared.Application.Security;
+using SmartQuote.API.Shared.Domain;
+using SmartQuote.API.Shared.Domain.Model.ValueObjects;
+using SmartQuote.Modules.EvaluationSimulation.Application.OutboundServices;
 
-namespace SmartQuote.API.PurchaseOrdering.Application;
+namespace SmartQuote.Modules.PurchaseOrdering.Application;
 
 public class PurchaseOrderApplicationService(
     IPurchaseOrderRepository repository,

@@ -1,7 +1,7 @@
-using SmartQuote.API.EvaluationSimulation.Application.OutboundServices;
 using SmartQuote.API.PurchaseOrdering.Domain.Model.ValueObjects;
+using SmartQuote.Modules.EvaluationSimulation.Application.OutboundServices;
 
-namespace SmartQuote.API.PurchaseOrdering.Application;
+namespace SmartQuote.Modules.PurchaseOrdering.Application;
 
 /// <summary>
 /// Anti-corruption mapper: translates the imported ApprovedSimulationSnapshot from

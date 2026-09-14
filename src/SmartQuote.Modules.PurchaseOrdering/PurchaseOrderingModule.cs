@@ -1,13 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using SmartQuote.API.PurchaseOrdering.Application;
 using SmartQuote.API.PurchaseOrdering.Application.Ports;
 using SmartQuote.API.PurchaseOrdering.Domain.Services;
 using SmartQuote.API.PurchaseOrdering.Infrastructure.Persistence.EFC.Configuration;
 using SmartQuote.API.PurchaseOrdering.Infrastructure.Persistence.EFC.Repositories;
+using SmartQuote.Modules.PurchaseOrdering.Application;
 
-namespace SmartQuote.API.PurchaseOrdering;
+namespace SmartQuote.Modules.PurchaseOrdering;
 
 public static class PurchaseOrderingModule
 {

@@ -1,13 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using SmartQuote.API.PurchaseOrdering.Application;
 using SmartQuote.API.PurchaseOrdering.Domain.Model.Commands;
 using SmartQuote.API.PurchaseOrdering.Interfaces.REST.Resources;
 using SmartQuote.API.PurchaseOrdering.Interfaces.REST.Transform;
 using SmartQuote.API.Shared.Application.Security;
+using SmartQuote.Modules.PurchaseOrdering.Application;
 
-namespace SmartQuote.API.PurchaseOrdering.Interfaces.REST;
+namespace SmartQuote.Modules.PurchaseOrdering.Interfaces.REST;
 
 [ApiController]
 [Authorize(Roles = SmartQuoteRoles.PurchaseManager)]
