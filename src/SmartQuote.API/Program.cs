@@ -1,5 +1,7 @@
 ﻿using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -13,6 +15,8 @@ using SmartQuote.API.SupplyRequests;
 using SmartQuote.API.SupplyRequests.Infrastructure.Persistence.EFC.Configuration;
 using SmartQuote.Modules.EvaluationSimulation;
 using SmartQuote.Modules.EvaluationSimulation.Infrastructure.Persistence.EFC.Configuration;
+using SmartQuote.Modules.IdentityAccess;
+using SmartQuote.Modules.IdentityAccess.Infrastructure.Persistence.EFC.Configuration;
 using SmartQuote.Modules.PurchaseOrdering;
 using SmartQuote.Modules.QuotationIntake;
 using SmartQuote.Modules.QuotationIntake.Infrastructure.Persistence.EFC.Configuration;
@@ -67,12 +71,26 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 builder.Services.AddAuthorization();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("authentication-login", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(15),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options => options.AddPolicy("SmartQuoteClients", policy =>
 {
     if (allowedOrigins.Length > 0)
-        policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod();
+        policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials();
 }));
 
 builder.Services.AddControllers();
@@ -99,12 +117,14 @@ builder.Services.AddSupplyRequestsModule(builder.Configuration, connectionString
 builder.Services.AddQuotationIntakeModule(builder.Configuration, connectionString);
 builder.Services.AddEvaluationSimulationModule(builder.Configuration, connectionString);
 builder.Services.AddPurchaseOrderingModule(builder.Configuration, connectionString);
+builder.Services.AddIdentityAccessModule(builder.Configuration, connectionString);
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<SupplyRequestsDbContext>("supply-requests-database")
     .AddDbContextCheck<QuotationIntakeDbContext>("quotation-intake-database")
     .AddDbContextCheck<EvaluationSimulationDbContext>("evaluation-simulation-database")
-    .AddDbContextCheck<PurchaseOrderingDbContext>("purchase-ordering-database");
+    .AddDbContextCheck<PurchaseOrderingDbContext>("purchase-ordering-database")
+    .AddDbContextCheck<IdentityAccessDbContext>("identity-access-database");
 
 var app = builder.Build();
 
@@ -115,7 +135,10 @@ if (builder.Configuration.GetValue("Database:ApplyMigrations", false))
     await scope.ServiceProvider.GetRequiredService<QuotationIntakeDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<EvaluationSimulationDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<PurchaseOrderingDbContext>().Database.MigrateAsync();
+    await scope.ServiceProvider.GetRequiredService<IdentityAccessDbContext>().Database.MigrateAsync();
 }
+
+await IdentityAccessModule.BootstrapAsync(app.Services, builder.Configuration);
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
@@ -127,6 +150,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("SmartQuoteClients");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

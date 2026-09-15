@@ -30,6 +30,7 @@ services:
       Jwt__Issuer: ${Jwt__Issuer}
       Jwt__Audience: ${Jwt__Audience}
       Jwt__SigningKey: ${Jwt__SigningKey}
+      IdentityAccess__Bootstrap__Password: ${IdentityAccess__Bootstrap__Password:-}
       AI__Provider: ${AI__Provider:-Stub}
       OpenAI__ApiKey: ${OpenAI__ApiKey:-}
       OpenAI__Model: ${OpenAI__Model:-gpt-4.1-mini}

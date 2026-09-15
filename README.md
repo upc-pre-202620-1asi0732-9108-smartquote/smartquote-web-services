@@ -46,6 +46,7 @@ dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Po
 dotnet user-secrets set "Jwt:Issuer" "SmartQuote" --project src/SmartQuote.API
 dotnet user-secrets set "Jwt:Audience" "SmartQuote.Clients" --project src/SmartQuote.API
 dotnet user-secrets set "Jwt:SigningKey" "REPLACE_WITH_AT_LEAST_32_RANDOM_CHARACTERS" --project src/SmartQuote.API
+dotnet user-secrets set "IdentityAccess:Bootstrap:Password" "CHOOSE_A_LOCAL_PASSWORD_OF_AT_LEAST_12_CHARACTERS" --project src/SmartQuote.API
 dotnet run --project src/SmartQuote.API
 ```
 
@@ -56,7 +57,20 @@ dotnet ef database update --project src/SmartQuote.Modules.SupplyRequests --star
 dotnet ef database update --project src/SmartQuote.Modules.QuotationIntake --startup-project src/SmartQuote.API --context QuotationIntakeDbContext
 dotnet ef database update --project src/SmartQuote.Modules.EvaluationSimulation --startup-project src/SmartQuote.API --context EvaluationSimulationDbContext
 dotnet ef database update --project src/SmartQuote.Modules.PurchaseOrdering --startup-project src/SmartQuote.API --context PurchaseOrderingDbContext
+dotnet ef database update --project src/SmartQuote.Modules.IdentityAccess --startup-project src/SmartQuote.API --context IdentityAccessDbContext
 ```
+
+## Acceso local
+
+Al configurar `IdentityAccess:Bootstrap:Password` (o `IdentityAccess__Bootstrap__Password` en `.env` para Docker), la API crea una sola vez estas cuentas locales con la misma contraseña. El valor no se almacena en Git; cámbielo antes de compartir un entorno.
+
+| Cuenta | Rol |
+| --- | --- |
+| `production@smartquote.local` | Production specialist |
+| `analyst@smartquote.local` | Purchase analyst |
+| `manager@smartquote.local` | Purchase manager |
+
+El frontend consume `POST /api/v1/iam/auth/login`, mantiene el access token únicamente en memoria y renueva la sesión mediante una cookie `HttpOnly`. No usa ni solicita claves JWT al usuario.
 
 ## OpenAI y secretos
 
@@ -72,5 +86,5 @@ Con Docker Compose, copie `.env.example` a `.env` y configure allí `AI__Provide
 
 ## Documentación de diagramas
 
-- Diagramas de clases PlantUML: `docs/1-supply-requests.puml`, `docs/2-quotation-intake.puml`, `docs/3-evaluation-simulation.puml` y `docs/4-purchase-ordering.puml`.
+- Diagramas de clases PlantUML: `docs/1-supply-requests.puml`, `docs/2-quotation-intake.puml`, `docs/3-evaluation-simulation.puml`, `docs/4-purchase-ordering.puml` y `docs/5-identity-access.puml`.
 - Modelo relacional: `docs/database-schema-documentation.md`.

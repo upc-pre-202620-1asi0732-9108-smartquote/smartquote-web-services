@@ -1,0 +1,130 @@
+@startuml IdentityAccessClassDiagram
+title SmartQuote — Identity & Access Management Bounded Context
+hide empty members
+skinparam classAttributeIconSize 0
+
+package "Domain" {
+  enum AccountStatus {
+    Active
+    Disabled
+  }
+
+  enum SmartQuoteRole {
+    ProductionSpecialist
+    PurchaseAnalyst
+    PurchaseManager
+  }
+
+  class UserAccount <<Aggregate Root>> {
+    +UserId Id
+    +string Email
+    +string NormalizedEmail
+    +string DisplayName
+    +string PasswordHash
+    +AccountStatus Status
+    +DateTimeOffset CreatedAt
+    +DateTimeOffset UpdatedAt
+    +ChangePassword(passwordHash, changedAt)
+    +Disable(changedAt)
+  }
+
+  class UserRole <<Entity>> {
+    +Guid Id
+    +SmartQuoteRole Role
+  }
+
+  class RefreshSession <<Entity>> {
+    +Guid Id
+    +string TokenHash
+    +DateTimeOffset ExpiresAt
+    +DateTimeOffset CreatedAt
+    +DateTimeOffset? RevokedAt
+    +bool IsActive(now)
+    +Revoke(revokedAt)
+  }
+
+  UserAccount "1" *-- "1..*" UserRole
+  UserAccount "1" *-- "0..*" RefreshSession
+}
+
+package "Application" {
+  class AuthenticationService {
+    +LoginAsync(command) : AuthenticatedSession
+    +RefreshAsync(rawToken) : AuthenticatedSession
+    +LogoutAsync(rawToken)
+    +GetCurrentUserAsync(userId) : CurrentUserView
+  }
+
+  interface IUserAccountRepository {
+    +FindByNormalizedEmailAsync(email)
+    +GetByIdAsync(userId)
+    +AddAsync(account)
+  }
+  interface IRefreshSessionRepository {
+    +GetByTokenHashAsync(tokenHash)
+    +AddAsync(session)
+  }
+  interface IPasswordHasher {
+    +Hash(password) : string
+    +Verify(hash, password) : bool
+  }
+  interface IAccessTokenIssuer {
+    +Issue(user) : IssuedAccessToken
+  }
+  interface IRefreshTokenGenerator {
+    +Generate() : GeneratedRefreshToken
+    +Hash(rawToken) : string
+  }
+  interface IIdentityAccessUnitOfWork {
+    +CompleteAsync()
+  }
+}
+
+package "Infrastructure" {
+  class IdentityAccessDbContext <<EF Core DbContext>>
+  class UserAccountRepository
+  class RefreshSessionRepository
+  class AspNetPasswordHasher
+  class JwtAccessTokenIssuer
+  class RefreshTokenGenerator
+  class IdentityAccessUnitOfWork
+
+  IdentityAccessDbContext <-- UserAccountRepository
+  IdentityAccessDbContext <-- RefreshSessionRepository
+  IdentityAccessDbContext <-- IdentityAccessUnitOfWork
+}
+
+package "Interfaces" {
+  class AuthController <<REST Controller>> {
+    +POST /api/v1/iam/auth/login
+    +POST /api/v1/iam/auth/refresh
+    +POST /api/v1/iam/auth/logout
+    +GET /api/v1/iam/auth/me
+  }
+}
+
+AuthController --> AuthenticationService
+AuthenticationService --> IUserAccountRepository
+AuthenticationService --> IRefreshSessionRepository
+AuthenticationService --> IPasswordHasher
+AuthenticationService --> IAccessTokenIssuer
+AuthenticationService --> IRefreshTokenGenerator
+AuthenticationService --> IIdentityAccessUnitOfWork
+UserAccountRepository ..|> IUserAccountRepository
+RefreshSessionRepository ..|> IRefreshSessionRepository
+AspNetPasswordHasher ..|> IPasswordHasher
+JwtAccessTokenIssuer ..|> IAccessTokenIssuer
+RefreshTokenGenerator ..|> IRefreshTokenGenerator
+IdentityAccessUnitOfWork ..|> IIdentityAccessUnitOfWork
+
+note bottom of UserAccount
+Passwords are persisted only as hashes.
+Other bounded contexts receive identity through ICurrentUser,
+not by reading IAM persistence.
+end note
+
+note bottom of RefreshSession
+Only a SHA-256 hash is persisted.
+The raw refresh token is sent only in an HttpOnly cookie.
+end note
+@enduml

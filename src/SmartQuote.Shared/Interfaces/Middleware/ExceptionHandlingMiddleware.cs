@@ -21,6 +21,11 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
 
             await WriteProblemAsync(context, HttpStatusCode.NotFound, "resource_not_found", "Resource not found", exception.Message);
         }
+        catch (AuthenticationException exception)
+        {
+            logger.LogInformation(exception, "Authentication failed on {Path}", context.Request.Path);
+            await WriteProblemAsync(context, HttpStatusCode.Unauthorized, "authentication_failed", "Authentication failed", exception.Message);
+        }
         catch (DomainException exception)
         {
             logger.LogWarning(exception, "Domain rule violation on {Path}", context.Request.Path);

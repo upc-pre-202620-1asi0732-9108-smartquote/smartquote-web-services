@@ -24,6 +24,7 @@
     <ProjectReference Include="../SmartQuote.Modules.QuotationIntake/SmartQuote.Modules.QuotationIntake.csproj" />
     <ProjectReference Include="../SmartQuote.Modules.EvaluationSimulation/SmartQuote.Modules.EvaluationSimulation.csproj" />
     <ProjectReference Include="../SmartQuote.Modules.PurchaseOrdering/SmartQuote.Modules.PurchaseOrdering.csproj" />
+    <ProjectReference Include="../SmartQuote.Modules.IdentityAccess/SmartQuote.Modules.IdentityAccess.csproj" />
   </ItemGroup>
 
 </Project>

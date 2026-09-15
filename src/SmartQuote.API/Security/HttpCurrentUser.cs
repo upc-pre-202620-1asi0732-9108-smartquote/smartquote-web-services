@@ -22,7 +22,7 @@ public sealed class HttpCurrentUser(IHttpContextAccessor httpContextAccessor) : 
         }
     }
 
-    public IReadOnlySet<string> Roles => Principal.FindAll(ClaimTypes.Role)
+    public IReadOnlySet<string> Roles => Principal.FindAll("role")
         .Select(claim => claim.Value)
         .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
