@@ -7,5 +7,7 @@ public interface IUserAccountRepository
 {
     Task<UserAccount?> FindByNormalizedEmailAsync(string normalizedEmail, CancellationToken cancellationToken = default);
     Task<UserAccount?> GetByIdAsync(UserId userId, CancellationToken cancellationToken = default);
+    Task<bool> AnyAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<UserAccount>> FindPendingAsync(CancellationToken cancellationToken = default);
     Task AddAsync(UserAccount account, CancellationToken cancellationToken = default);
 }

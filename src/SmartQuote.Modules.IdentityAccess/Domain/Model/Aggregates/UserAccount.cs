@@ -20,7 +20,8 @@ public sealed class UserAccount : AggregateRoot<UserId>
         string displayName,
         string passwordHash,
         IEnumerable<SmartQuoteRole> roles,
-        DateTimeOffset createdAt)
+        DateTimeOffset createdAt,
+        AccountStatus status = AccountStatus.Active)
     {
         var normalizedEmail = NormalizeEmail(email);
         var assignedRoles = roles.Distinct().ToList();
@@ -36,7 +37,7 @@ public sealed class UserAccount : AggregateRoot<UserId>
         NormalizedEmail = normalizedEmail;
         DisplayName = displayName.Trim();
         PasswordHash = passwordHash;
-        Status = AccountStatus.Active;
+        Status = status;
         CreatedAt = createdAt;
         UpdatedAt = createdAt;
         _roles.AddRange(assignedRoles.Select(role => new UserRole(role)));
@@ -67,6 +68,19 @@ public sealed class UserAccount : AggregateRoot<UserId>
 
         PasswordHash = passwordHash;
         UpdatedAt = changedAt;
+    }
+
+    public void ApproveRegistration(SmartQuoteRole approvedRole, DateTimeOffset approvedAt)
+    {
+        if (Status != AccountStatus.Pending)
+            throw new ConflictException("Only a pending account can be approved.");
+        if (!Enum.IsDefined(approvedRole))
+            throw new ArgumentException("Approved role is invalid.", nameof(approvedRole));
+
+        _roles.Clear();
+        _roles.Add(new UserRole(approvedRole));
+        Status = AccountStatus.Active;
+        UpdatedAt = approvedAt;
     }
 
     public void Disable(DateTimeOffset changedAt)

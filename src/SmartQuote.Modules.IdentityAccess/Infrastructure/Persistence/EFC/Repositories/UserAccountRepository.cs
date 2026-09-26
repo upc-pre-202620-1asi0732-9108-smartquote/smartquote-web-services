@@ -14,6 +14,15 @@ public sealed class UserAccountRepository(IdentityAccessDbContext context) : IUs
     public Task<UserAccount?> GetByIdAsync(UserId userId, CancellationToken cancellationToken = default) =>
         AccountsWithRoles().FirstOrDefaultAsync(account => account.Id == userId, cancellationToken);
 
+    public Task<bool> AnyAsync(CancellationToken cancellationToken = default) =>
+        context.UserAccounts.AnyAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<UserAccount>> FindPendingAsync(CancellationToken cancellationToken = default) =>
+        await AccountsWithRoles()
+            .Where(account => account.Status == SmartQuote.Modules.IdentityAccess.Domain.Model.Enums.AccountStatus.Pending)
+            .OrderBy(account => account.CreatedAt)
+            .ToListAsync(cancellationToken);
+
     public Task AddAsync(UserAccount account, CancellationToken cancellationToken = default) =>
         context.UserAccounts.AddAsync(account, cancellationToken).AsTask();
 

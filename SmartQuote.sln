@@ -19,6 +19,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SmartQuote.Modules.Identity
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SmartQuote.API", "src\SmartQuote.API\SmartQuote.API.csproj", "{FCBBA637-A4B0-4AE8-8B48-FF08693D1481}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SmartQuote.Modules.IdentityAccess.Tests", "tests\SmartQuote.Modules.IdentityAccess.Tests\SmartQuote.Modules.IdentityAccess.Tests.csproj", "{4C79DFA7-837F-47FC-8595-C1F67790BBAA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -113,6 +117,18 @@ Global
 		{FCBBA637-A4B0-4AE8-8B48-FF08693D1481}.Release|x64.Build.0 = Release|Any CPU
 		{FCBBA637-A4B0-4AE8-8B48-FF08693D1481}.Release|x86.ActiveCfg = Release|Any CPU
 		{FCBBA637-A4B0-4AE8-8B48-FF08693D1481}.Release|x86.Build.0 = Release|Any CPU
+		{4C79DFA7-837F-47FC-8595-C1F67790BBAA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4C79DFA7-837F-47FC-8595-C1F67790BBAA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4C79DFA7-837F-47FC-8595-C1F67790BBAA}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4C79DFA7-837F-47FC-8595-C1F67790BBAA}.Debug|x64.Build.0 = Debug|Any CPU
+		{4C79DFA7-837F-47FC-8595-C1F67790BBAA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4C79DFA7-837F-47FC-8595-C1F67790BBAA}.Debug|x86.Build.0 = Debug|Any CPU
+		{4C79DFA7-837F-47FC-8595-C1F67790BBAA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4C79DFA7-837F-47FC-8595-C1F67790BBAA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4C79DFA7-837F-47FC-8595-C1F67790BBAA}.Release|x64.ActiveCfg = Release|Any CPU
+		{4C79DFA7-837F-47FC-8595-C1F67790BBAA}.Release|x64.Build.0 = Release|Any CPU
+		{4C79DFA7-837F-47FC-8595-C1F67790BBAA}.Release|x86.ActiveCfg = Release|Any CPU
+		{4C79DFA7-837F-47FC-8595-C1F67790BBAA}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -125,5 +141,6 @@ Global
 		{F5976445-0F2E-4673-BB75-99D22EB81C2A} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{1DF2857E-0BB1-4B42-9AF1-8D1B670BD297} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{FCBBA637-A4B0-4AE8-8B48-FF08693D1481} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{4C79DFA7-837F-47FC-8595-C1F67790BBAA} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

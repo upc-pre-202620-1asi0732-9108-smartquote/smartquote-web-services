@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using SmartQuote.API.Shared.Domain;
 using SmartQuote.API.Shared.Domain.Model.ValueObjects;
 using SmartQuote.Modules.IdentityAccess.Application.Commands;
@@ -5,6 +6,8 @@ using SmartQuote.Modules.IdentityAccess.Application.Ports;
 using SmartQuote.Modules.IdentityAccess.Application.Views;
 using SmartQuote.Modules.IdentityAccess.Domain.Model.Aggregates;
 using SmartQuote.Modules.IdentityAccess.Domain.Model.Entities;
+using SmartQuote.Modules.IdentityAccess.Domain.Model.Enums;
+using SmartQuote.Modules.IdentityAccess.Domain.Services;
 
 namespace SmartQuote.Modules.IdentityAccess.Application;
 
@@ -16,6 +19,75 @@ public sealed class AuthenticationService(
     IRefreshTokenGenerator refreshTokenGenerator,
     IIdentityAccessUnitOfWork unitOfWork)
 {
+    public async Task<RegistrationStatusView> GetRegistrationStatusAsync(CancellationToken cancellationToken = default) =>
+        new(!await userAccountRepository.AnyAsync(cancellationToken));
+
+    public async Task<RegisteredAccountView> RegisterAsync(
+        RegisterAccountCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedEmail = NormalizeRegistrationEmail(command.Email);
+        RegistrationPasswordPolicy.Validate(command.Password, command.Email);
+
+        await unitOfWork.BeginRegistrationAsync(cancellationToken);
+        try
+        {
+            if (await userAccountRepository.FindByNormalizedEmailAsync(normalizedEmail, cancellationToken) is not null)
+                throw EmailAlreadyRegistered();
+
+            var initialSetup = !await userAccountRepository.AnyAsync(cancellationToken);
+            var role = initialSetup
+                ? ParseInitialSetupRole(command.Role)
+                : ParseRequestedRole(command.Role);
+            var status = initialSetup ? AccountStatus.Active : AccountStatus.Pending;
+            var now = DateTimeOffset.UtcNow;
+            var account = new UserAccount(
+                new UserId(Guid.NewGuid()),
+                command.Email,
+                command.DisplayName,
+                passwordHasher.Hash(command.Password),
+                [role],
+                now,
+                status);
+
+            await userAccountRepository.AddAsync(account, cancellationToken);
+            await unitOfWork.CompleteAsync(cancellationToken);
+            return ToRegistrationView(account, initialSetup);
+        }
+        catch
+        {
+            await unitOfWork.AbortRegistrationAsync(cancellationToken);
+            throw;
+        }
+    }
+
+    public async Task<IReadOnlyList<PendingRegistrationView>> GetPendingRegistrationsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var pending = await userAccountRepository.FindPendingAsync(cancellationToken);
+        return pending.Select(account => new PendingRegistrationView(
+            account.Id.Value,
+            account.Email,
+            account.DisplayName,
+            account.Roles.Single().Role.ToString(),
+            account.CreatedAt)).ToList();
+    }
+
+    public async Task<CurrentUserView> ApproveRegistrationAsync(
+        Guid userId,
+        string roleName,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryParseRole(roleName, out var role))
+            throw InvalidRole();
+
+        var account = await userAccountRepository.GetByIdAsync(new UserId(userId), cancellationToken)
+            ?? throw new KeyNotFoundException("Registration request was not found.");
+        account.ApproveRegistration(role, DateTimeOffset.UtcNow);
+        await unitOfWork.CompleteAsync(cancellationToken);
+        return ToView(account);
+    }
+
     public async Task<AuthenticatedSession> LoginAsync(
         LoginCommand command,
         CancellationToken cancellationToken = default)
@@ -80,29 +152,6 @@ public sealed class AuthenticationService(
         return ToView(account);
     }
 
-    public async Task BootstrapAccountAsync(
-        BootstrapAccountCommand command,
-        CancellationToken cancellationToken = default)
-    {
-        if (command.Password.Length < 12)
-            throw new ArgumentException("Bootstrap passwords must contain at least 12 characters.", nameof(command));
-
-        var normalizedEmail = UserAccount.NormalizeEmail(command.Email);
-        if (await userAccountRepository.FindByNormalizedEmailAsync(normalizedEmail, cancellationToken) is not null)
-            return;
-
-        var now = DateTimeOffset.UtcNow;
-        var account = new UserAccount(
-            new UserId(Guid.NewGuid()),
-            command.Email,
-            command.DisplayName,
-            passwordHasher.Hash(command.Password),
-            [command.Role],
-            now);
-        await userAccountRepository.AddAsync(account, cancellationToken);
-        await unitOfWork.CompleteAsync(cancellationToken);
-    }
-
     private async Task<AuthenticatedSession> IssueSessionAsync(UserAccount account, CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
@@ -124,12 +173,48 @@ public sealed class AuthenticationService(
             ToView(account));
     }
 
+    private static RegisteredAccountView ToRegistrationView(UserAccount account, bool initialSetup) => new(
+        account.Id.Value,
+        account.Email,
+        account.DisplayName,
+        account.Status.ToString(),
+        account.Roles.Select(role => role.Role.ToString()).ToList(),
+        initialSetup);
+
     private static CurrentUserView ToView(UserAccount account) => new(
         account.Id.Value,
         account.Email,
         account.DisplayName,
         account.Roles.Select(role => role.Role.ToString()).OrderBy(role => role).ToList());
 
+    private static SmartQuoteRole ParseInitialSetupRole(string? roleName)
+    {
+        if (string.IsNullOrWhiteSpace(roleName) || roleName == SmartQuoteRole.PurchaseManager.ToString())
+            return SmartQuoteRole.PurchaseManager;
+        throw InvalidRole();
+    }
+
+    private static SmartQuoteRole ParseRequestedRole(string? roleName) =>
+        TryParseRole(roleName, out var role) ? role : throw InvalidRole();
+
+    private static bool TryParseRole(string? roleName, out SmartQuoteRole role) =>
+        Enum.TryParse(roleName, out role) && Enum.IsDefined(role) &&
+        string.Equals(roleName, role.ToString(), StringComparison.Ordinal);
+
+    private static ArgumentException InvalidRole() =>
+        new("Role must be ProductionSpecialist, PurchaseAnalyst, or PurchaseManager.", "role");
+
     private static AuthenticationException InvalidCredentials() =>
         new("Email or password is invalid.");
+
+    private static ConflictException EmailAlreadyRegistered() =>
+        new("Email is already registered.");
+
+    private static string NormalizeRegistrationEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email) || !new EmailAddressAttribute().IsValid(email.Trim()))
+            throw new ArgumentException("Email format is invalid.", nameof(email));
+
+        return UserAccount.NormalizeEmail(email);
+    }
 }

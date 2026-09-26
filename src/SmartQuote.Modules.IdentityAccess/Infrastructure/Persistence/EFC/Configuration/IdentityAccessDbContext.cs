@@ -7,7 +7,6 @@ namespace SmartQuote.Modules.IdentityAccess.Infrastructure.Persistence.EFC.Confi
 public sealed class IdentityAccessDbContext(DbContextOptions<IdentityAccessDbContext> options) : DbContext(options)
 {
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
-
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.ApplyIdentityAccessConfiguration();

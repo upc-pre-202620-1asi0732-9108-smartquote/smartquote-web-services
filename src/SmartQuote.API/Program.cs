@@ -84,6 +84,16 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+    options.AddPolicy("authentication-register", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(15),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
 });
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
@@ -137,8 +147,6 @@ if (builder.Configuration.GetValue("Database:ApplyMigrations", false))
     await scope.ServiceProvider.GetRequiredService<PurchaseOrderingDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<IdentityAccessDbContext>().Database.MigrateAsync();
 }
-
-await IdentityAccessModule.BootstrapAsync(app.Services, builder.Configuration);
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 

@@ -46,7 +46,6 @@ dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Po
 dotnet user-secrets set "Jwt:Issuer" "SmartQuote" --project src/SmartQuote.API
 dotnet user-secrets set "Jwt:Audience" "SmartQuote.Clients" --project src/SmartQuote.API
 dotnet user-secrets set "Jwt:SigningKey" "REPLACE_WITH_AT_LEAST_32_RANDOM_CHARACTERS" --project src/SmartQuote.API
-dotnet user-secrets set "IdentityAccess:Bootstrap:Password" "CHOOSE_A_LOCAL_PASSWORD_OF_AT_LEAST_12_CHARACTERS" --project src/SmartQuote.API
 dotnet run --project src/SmartQuote.API
 ```
 
@@ -62,15 +61,17 @@ dotnet ef database update --project src/SmartQuote.Modules.IdentityAccess --star
 
 ## Acceso local
 
-Al configurar `IdentityAccess:Bootstrap:Password` (o `IdentityAccess__Bootstrap__Password` en `.env` para Docker), la API crea una sola vez estas cuentas locales con la misma contraseña. El valor no se almacena en Git; cámbielo antes de compartir un entorno.
+No se crean cuentas de prueba al arrancar ni se requiere cargar usuarios con seeds. En una base de datos de identidad vacía, la primera persona se registra desde la pantalla pública y se convierte en `PurchaseManager` para completar la configuración inicial. El frontend puede consultar `GET /api/v1/iam/auth/registration-status` para saber si debe mostrar el flujo de configuración inicial.
 
-| Cuenta | Rol |
-| --- | --- |
-| `production@smartquote.local` | Production specialist |
-| `analyst@smartquote.local` | Purchase analyst |
-| `manager@smartquote.local` | Purchase manager |
+Después del primer registro, cualquier persona puede solicitar una cuenta desde la misma pantalla, seleccionar `ProductionSpecialist`, `PurchaseAnalyst` o `PurchaseManager` y registrar sus credenciales. Esa cuenta queda `Pending` y no puede iniciar sesión hasta que un `PurchaseManager` la revise en `GET /api/v1/iam/registration-requests` y la apruebe mediante `POST /api/v1/iam/registration-requests/{userId}/approve`, asignándole el rol final. Así, las cuentas y roles se gestionan desde el propio sistema, sin seeds ni códigos de invitación, y nadie puede activarse permisos por sí mismo.
 
 El frontend consume `POST /api/v1/iam/auth/login`, mantiene el access token únicamente en memoria y renueva la sesión mediante una cookie `HttpOnly`. No usa ni solicita claves JWT al usuario.
+
+## Registro de cuentas (US09)
+
+`POST /api/v1/iam/auth/register` recibe `email`, `displayName`, `password` y, después del primer registro, el rol solicitado (`ProductionSpecialist`, `PurchaseAnalyst` o `PurchaseManager`). La primera cuenta se activa automáticamente como `PurchaseManager`; las posteriores quedan pendientes de aprobación. Las solicitudes sólo las puede activar un `PurchaseManager`, que también confirma el rol efectivo. La unicidad del correo se compara sin distinguir mayúsculas y se protege con un índice único en la base de datos; los correos repetidos devuelven HTTP 409.
+
+La contraseña de registro debe tener entre 12 y 128 caracteres, al menos una letra mayúscula, una minúscula, un número y un símbolo. No puede contener caracteres de control ni la parte anterior a `@` del correo cuando esta tenga al menos tres caracteres. Se valida en el backend sin modificar el texto ingresado y se almacena mediante el hasher de ASP.NET Core Identity. Las contraseñas inválidas devuelven HTTP 400 con la regla incumplida; el inicio de sesión conserva un mensaje genérico para credenciales incorrectas. El registro admite hasta cinco intentos por dirección IP cada quince minutos.
 
 ## OpenAI y secretos
 

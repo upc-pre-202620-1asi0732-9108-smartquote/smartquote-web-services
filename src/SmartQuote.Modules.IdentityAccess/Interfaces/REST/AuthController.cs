@@ -11,9 +11,64 @@ using SmartQuote.Modules.IdentityAccess.Interfaces.REST.Resources;
 namespace SmartQuote.Modules.IdentityAccess.Interfaces.REST;
 
 [ApiController]
-public sealed class AuthController(AuthenticationService authenticationService, ICurrentUser currentUser) : ControllerBase
+public sealed class AuthController(AuthenticationService authenticationService) : ControllerBase
 {
     private const string RefreshCookieName = "smartquote_refresh";
+
+    [AllowAnonymous]
+    [HttpGet("api/v1/iam/auth/registration-status")]
+    [ProducesResponseType<RegistrationStatusResource>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<RegistrationStatusResource>> RegistrationStatus(CancellationToken cancellationToken)
+    {
+        var status = await authenticationService.GetRegistrationStatusAsync(cancellationToken);
+        return Ok(new RegistrationStatusResource(status.InitialSetupRequired));
+    }
+
+    [AllowAnonymous]
+    [EnableRateLimiting("authentication-register")]
+    [HttpPost("api/v1/iam/auth/register")]
+    [ProducesResponseType<RegisteredAccountResource>(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<RegisteredAccountResource>> Register(
+        [FromBody] RegisterAccountResource resource,
+        CancellationToken cancellationToken)
+    {
+        var account = await authenticationService.RegisterAsync(
+            new RegisterAccountCommand(resource.Email, resource.DisplayName, resource.Password, resource.Role),
+            cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, ToResource(account));
+    }
+
+    [Authorize(Roles = SmartQuoteRoles.PurchaseManager)]
+    [HttpGet("api/v1/iam/registration-requests")]
+    [ProducesResponseType<IReadOnlyList<PendingRegistrationResource>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<IReadOnlyList<PendingRegistrationResource>>> PendingRegistrations(
+        CancellationToken cancellationToken)
+    {
+        var requests = await authenticationService.GetPendingRegistrationsAsync(cancellationToken);
+        return Ok(requests.Select(ToResource).ToList());
+    }
+
+    [Authorize(Roles = SmartQuoteRoles.PurchaseManager)]
+    [HttpPost("api/v1/iam/registration-requests/{userId:guid}/approve")]
+    [ProducesResponseType<CurrentUserResource>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<CurrentUserResource>> ApproveRegistration(
+        Guid userId,
+        [FromBody] ApproveRegistrationResource resource,
+        CancellationToken cancellationToken)
+    {
+        var user = await authenticationService.ApproveRegistrationAsync(userId, resource.Role, cancellationToken);
+        return Ok(ToResource(user));
+    }
 
     [AllowAnonymous]
     [EnableRateLimiting("authentication-login")]
@@ -57,7 +112,9 @@ public sealed class AuthController(AuthenticationService authenticationService, 
     [HttpGet("api/v1/iam/auth/me")]
     [ProducesResponseType<CurrentUserResource>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<CurrentUserResource>> Me(CancellationToken cancellationToken)
+    public async Task<ActionResult<CurrentUserResource>> Me(
+        [FromServices] ICurrentUser currentUser,
+        CancellationToken cancellationToken)
     {
         var user = await authenticationService.GetCurrentUserAsync(currentUser.UserId, cancellationToken);
         return Ok(ToResource(user));
@@ -85,4 +142,10 @@ public sealed class AuthController(AuthenticationService authenticationService, 
 
     private static CurrentUserResource ToResource(CurrentUserView view) => new(
         view.UserId, view.Email, view.DisplayName, view.Roles);
+
+    private static RegisteredAccountResource ToResource(RegisteredAccountView view) => new(
+        view.UserId, view.Email, view.DisplayName, view.Status, view.Roles, view.InitialSetup);
+
+    private static PendingRegistrationResource ToResource(PendingRegistrationView view) => new(
+        view.UserId, view.Email, view.DisplayName, view.RequestedRole, view.CreatedAt);
 }
