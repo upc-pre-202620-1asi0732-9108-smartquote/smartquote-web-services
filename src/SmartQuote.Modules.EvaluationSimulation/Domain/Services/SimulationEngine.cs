@@ -2,6 +2,8 @@
 using SmartQuote.Modules.EvaluationSimulation.Domain.Model.Entities;
 using SmartQuote.Modules.EvaluationSimulation.Domain.Model.Enums;
 using SmartQuote.Modules.EvaluationSimulation.Domain.Model.ValueObjects;
+using System.Globalization;
+using System.Text;
 
 namespace SmartQuote.Modules.EvaluationSimulation.Domain.Services;
 
@@ -117,10 +119,10 @@ public class SimulationEngine
 
             foreach (var requirement in requestedItem.Requirements.Where(requirement => requirement.SourceRequirementId is not null))
             {
-                var specification = quotationLine.Specifications.FirstOrDefault(candidate =>
-                    candidate.Name.Equals(requirement.Name, StringComparison.OrdinalIgnoreCase));
-                if (specification is not null)
-                    technicalValues[requirement.SourceRequirementId!] = specification;
+                var matches = quotationLine.Specifications.Where(candidate =>
+                    NormalizeTechnicalName(candidate.Name) == NormalizeTechnicalName(requirement.Name)).ToList();
+                if (matches.Count == 1)
+                    technicalValues[requirement.SourceRequirementId!] = matches[0];
             }
         }
 
@@ -128,5 +130,16 @@ public class SimulationEngine
             quotationSnapshot.TotalPrice().Amount,
             quotationSnapshot.DeliveryLeadTimeDays,
             technicalValues);
+    }
+
+    private static string NormalizeTechnicalName(string name)
+    {
+        var decomposed = name.ToLowerInvariant().Normalize(NormalizationForm.FormD);
+        var plain = new string(decomposed.Where(ch => CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark)
+            .Select(ch => char.IsLetterOrDigit(ch) ? ch : ' ').ToArray());
+        var tokens = plain.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(token => token is not ("minima" or "minimo" or "maxima" or "maximo" or "cruda" or "crude" or "contenido" or "porcentaje" or "de"))
+            .Select(token => token == "protein" ? "proteina" : token);
+        return string.Join(' ', tokens);
     }
 }

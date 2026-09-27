@@ -14,6 +14,9 @@ public class PoultryQuote : AggregateRoot<PoultryQuoteId>
     private static readonly Regex LineFieldPath = new(
         "^lines\\[(?<index>\\d+)\\]\\.(?<field>description|quantity|unitOfMeasure|unitPrice)$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex SpecificationValuePath = new(
+        "^lines\\[(?<line>\\d+)\\]\\.specifications\\[(?<spec>\\d+)\\]\\.value$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private readonly List<QuotationLine> _lines = [];
     private readonly List<ExtractedField> _fields = [];
@@ -62,11 +65,13 @@ public class PoultryQuote : AggregateRoot<PoultryQuoteId>
 
     public void BeginExtraction()
     {
-        if (Status is not (QuotationStatus.Uploaded or QuotationStatus.Rejected))
+        if (Status is not (QuotationStatus.Uploaded or QuotationStatus.Rejected) &&
+            !(Status == QuotationStatus.Processing && UpdatedAt < DateTimeOffset.UtcNow.AddMinutes(-2)))
             throw new DomainException($"Cannot begin extraction from status '{Status}'.");
 
         Status = QuotationStatus.Processing;
         RejectionReason = null;
+        Version++;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
@@ -75,6 +80,7 @@ public class PoultryQuote : AggregateRoot<PoultryQuoteId>
         if (Status != QuotationStatus.Processing)
             throw new DomainException($"Cannot apply extraction from status '{Status}'.");
 
+        Supplier = data.Supplier;
         ValidUntil = data.ValidUntil;
         Currency = data.Currency;
         DeliveryLeadTimeDays = data.DeliveryLeadTimeDays;
@@ -94,6 +100,8 @@ public class PoultryQuote : AggregateRoot<PoultryQuoteId>
         _fields.Clear();
         var requiredPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
+            "supplier.businessName",
+            "supplier.taxIdentifier",
             "validUntil",
             "currency",
             "deliveryLeadTimeDays"
@@ -149,6 +157,30 @@ public class PoultryQuote : AggregateRoot<PoultryQuoteId>
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
+    public void AddMissingSpecification(QuotationLineId lineId, string name, string value, string unitOfMeasure,
+        int sourcePage, string sourceText, UserId author, string reason)
+    {
+        if (Status != QuotationStatus.RequiresVerification)
+            throw new DomainException("Specifications can only be added during quotation verification.");
+        if (sourcePage <= 0 || string.IsNullOrWhiteSpace(sourceText) || string.IsNullOrWhiteSpace(reason))
+            throw new DomainException("Page, document evidence, and correction reason are required.");
+
+        var lineIndex = _lines.FindIndex(line => line.Id == lineId);
+        if (lineIndex < 0)
+            throw new DomainException($"Quotation line '{lineId}' was not found.");
+        var line = _lines[lineIndex];
+        var specificationIndex = line.Specifications.Count;
+        line.AddSpecification(new QuotedSpecification(name, value, unitOfMeasure));
+
+        var field = ExtractedField.Create(
+            $"lines[{lineIndex}].specifications[{specificationIndex}].value", null, false,
+            new ConfidenceScore(0), new SourceReference(sourcePage, sourceText), false);
+        field.Correct(value, author, reason);
+        _fields.Add(field);
+        Version++;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
     public void Confirm(UserId confirmedBy, IReadOnlyDictionary<Guid, string> lineMappings)
     {
         if (Status != QuotationStatus.RequiresVerification)
@@ -156,6 +188,9 @@ public class PoultryQuote : AggregateRoot<PoultryQuoteId>
 
         if (HasUnresolvedRequiredFields())
             throw new DomainException("Cannot confirm a quotation with unresolved required fields.");
+
+        if (string.IsNullOrWhiteSpace(Supplier.BusinessName) || string.IsNullOrWhiteSpace(Supplier.TaxIdentifier))
+            throw new DomainException("Supplier identity must be verified before confirmation.");
 
         if (ValidUntil is null || string.IsNullOrWhiteSpace(Currency) || DeliveryLeadTimeDays is null)
             throw new DomainException("Quotation header data is incomplete.");
@@ -201,6 +236,16 @@ public class PoultryQuote : AggregateRoot<PoultryQuoteId>
     {
         switch (fieldPath)
         {
+            case "supplier.businessName":
+                if (string.IsNullOrWhiteSpace(value))
+                    throw new DomainException("Supplier business name is required.");
+                Supplier = new SupplierReference(Supplier.SupplierId, value, Supplier.TaxIdentifier);
+                return;
+            case "supplier.taxIdentifier":
+                if (string.IsNullOrWhiteSpace(value))
+                    throw new DomainException("Supplier tax identifier is required.");
+                Supplier = new SupplierReference(Supplier.SupplierId, Supplier.BusinessName, value);
+                return;
             case "validUntil":
                 if (!DateOnly.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var validUntil))
                     throw new DomainException("Corrected validity date must use YYYY-MM-DD format.");
@@ -220,7 +265,17 @@ public class PoultryQuote : AggregateRoot<PoultryQuoteId>
 
         var match = LineFieldPath.Match(fieldPath);
         if (!match.Success)
+        {
+            var specificationMatch = SpecificationValuePath.Match(fieldPath);
+            if (!specificationMatch.Success)
+                throw new DomainException($"Field '{fieldPath}' cannot be corrected.");
+            var lineIndex = int.Parse(specificationMatch.Groups["line"].Value, CultureInfo.InvariantCulture);
+            var specificationIndex = int.Parse(specificationMatch.Groups["spec"].Value, CultureInfo.InvariantCulture);
+            if (lineIndex >= _lines.Count)
+                throw new DomainException("Quotation line does not exist.");
+            _lines[lineIndex].CorrectSpecificationValue(specificationIndex, value);
             return;
+        }
 
         var index = int.Parse(match.Groups["index"].Value, CultureInfo.InvariantCulture);
         if (index < 0 || index >= _lines.Count)

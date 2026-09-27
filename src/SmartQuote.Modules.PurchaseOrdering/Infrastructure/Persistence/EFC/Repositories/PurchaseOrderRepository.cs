@@ -26,4 +26,10 @@ public class PurchaseOrderRepository(PurchaseOrderingDbContext context)
             .Include(order => order.Lines)
             .Where(order => order.Approval.IdempotencyKey == idempotencyKey)
             .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<PurchaseOrder?> FindByRequestAsync(string requestId, CancellationToken cancellationToken = default) =>
+        await Context.PurchaseOrders
+            .Include(order => order.Lines)
+            .Where(order => order.SourceDecision.PurchaseRequestId == requestId)
+            .FirstOrDefaultAsync(cancellationToken);
 }

@@ -2,6 +2,7 @@
 
 public record ExtractionResult(
     string? Supplier,
+    string? SupplierTaxIdentifier,
     DateOnly? ValidUntil,
     string? Currency,
     int? DeliveryLeadTimeDays,

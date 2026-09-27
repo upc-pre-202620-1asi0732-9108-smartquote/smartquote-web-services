@@ -35,7 +35,7 @@ public class SemanticKernelAgentConnector : IQuoteExtractionAgent
         _configuration = configuration;
     }
 
-    public async Task<ExtractionResult> ExtractAsync(QuotationDocument document, CancellationToken cancellationToken = default)
+    public async Task<ExtractionResult> ExtractAsync(QuotationDocument document, PurchaseRequestReferenceData request, CancellationToken cancellationToken = default)
     {
         // Built lazily (not in the constructor) so the rest of QuotationIntake stays usable
         // without OPENAI_API_KEY configured; only Process() actually needs the AI connector.
@@ -46,7 +46,23 @@ public class SemanticKernelAgentConnector : IQuoteExtractionAgent
 
         var history = new ChatHistory();
         history.AddSystemMessage(SystemPrompt);
-        history.AddUserMessage($"Extract the quotation data from the attached document.\n\n---\n{documentText}\n---");
+        var requestedItems = JsonSerializer.Serialize(request.Items);
+        history.AddUserMessage($"""
+            Extract the quotation data from the document. The purchase-request items below are context,
+            not evidence. Use them only to identify equivalent technical specifications and line matches;
+            never copy an expected value into a quotation result unless the document itself states it.
+            Return supplier business name and tax identifier (RUC when present) as separate fields.
+            Every extracted supplier field and every specification value must have a field evidence entry
+            with paths supplier.businessName, supplier.taxIdentifier, and
+            lines[zeroBasedLineIndex].specifications[zeroBasedSpecIndex].value respectively.
+            Normalize decimal separators to invariant decimal form and preserve the document's units.
+            When a requirement has no supported specification, omit it; never infer compliance.
+            Requested items: {requestedItems}
+
+            --- DOCUMENT ---
+            {documentText}
+            --- END DOCUMENT ---
+            """);
 
         var settings = new OpenAIPromptExecutionSettings { ResponseFormat = typeof(ExtractionResultDto) };
 
@@ -126,6 +142,7 @@ public class SemanticKernelAgentConnector : IQuoteExtractionAgent
 
         return new ExtractionResult(
             dto.Supplier,
+            dto.SupplierTaxIdentifier,
             dto.ValidUntil,
             dto.Currency,
             dto.DeliveryLeadTimeDays,
@@ -146,6 +163,7 @@ public class SemanticKernelAgentConnector : IQuoteExtractionAgent
 
     private record ExtractionResultDto(
         [property: JsonPropertyName("supplier")] string? Supplier,
+        [property: JsonPropertyName("supplierTaxIdentifier")] string? SupplierTaxIdentifier,
         [property: JsonPropertyName("validUntil")] DateOnly? ValidUntil,
         [property: JsonPropertyName("currency")] string? Currency,
         [property: JsonPropertyName("deliveryLeadTimeDays")] int? DeliveryLeadTimeDays,

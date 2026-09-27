@@ -50,7 +50,20 @@ public class QuotationLine
 
     public Money CalculateSubtotal(string currency) => AsMoney(currency) * (Quantity ?? throw new DomainException("Quotation line quantity is unresolved."));
 
-    public void AddSpecification(QuotedSpecification specification) => _specifications.Add(specification);
+    public void AddSpecification(QuotedSpecification specification)
+    {
+        if (_specifications.Any(existing => existing.Name.Equals(specification.Name, StringComparison.OrdinalIgnoreCase)))
+            throw new DomainException($"Specification '{specification.Name}' already exists on this quotation line.");
+        _specifications.Add(specification);
+    }
+
+    public void CorrectSpecificationValue(int index, string value)
+    {
+        if (index < 0 || index >= _specifications.Count || string.IsNullOrWhiteSpace(value))
+            throw new DomainException("A valid quotation specification value is required.");
+        var previous = _specifications[index];
+        _specifications[index] = new QuotedSpecification(previous.Name, value.Trim(), previous.UnitOfMeasure);
+    }
 
     public void LinkToRequestedItem(string requestedItemId)
     {

@@ -56,4 +56,14 @@ public class PurchaseOrdersController(PurchaseOrderApplicationService applicatio
         var view = await applicationService.GetBySimulationAsync(runId.ToString(), cancellationToken);
         return Ok(PurchaseOrderResourceFromViewAssembler.ToResource(view));
     }
+
+    [HttpGet("api/v1/purchase-requests/{requestId:guid}/purchase-order")]
+    [Authorize(Roles = SmartQuoteRoles.PurchasingStaff)]
+    [ProducesResponseType<PurchaseOrderResource>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PurchaseOrderResource>> GetByRequest(Guid requestId, CancellationToken cancellationToken)
+    {
+        var order = await applicationService.GetByRequestAsync(requestId, cancellationToken);
+        return order is null ? NotFound() : Ok(PurchaseOrderResourceFromViewAssembler.ToResource(order));
+    }
 }

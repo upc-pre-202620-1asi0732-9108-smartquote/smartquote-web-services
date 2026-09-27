@@ -69,7 +69,8 @@ public class SimulationRun : AggregateRoot<SimulationRunId>
 
         Recommendation = winner is null
             ? null
-            : new Recommendation(winner.QuotationId, winner.TotalScore, $"Highest weighted score among {ranked.Count} eligible quotation(s).");
+            : new Recommendation(winner.QuotationId, winner.TotalScore,
+                $"Mayor puntaje ponderado entre {ranked.Count} cotización(es) que cumplen los requisitos obligatorios.");
 
         AddDomainEvent(new SimulationCompleted(Id, ScenarioId, winner?.QuotationId, InputFingerprint.Value, DateTimeOffset.UtcNow));
     }

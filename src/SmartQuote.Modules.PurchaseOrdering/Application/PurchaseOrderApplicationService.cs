@@ -18,6 +18,7 @@ public class PurchaseOrderApplicationService(
     PurchaseOrderGenerator orderGenerator,
     IOrderNumberGenerator orderNumberGenerator,
     IPurchaseOrderingUnitOfWork unitOfWork,
+    IOrderRequestLifecycle requestLifecycle,
     IDomainEventDispatcher domainEventDispatcher,
     ICurrentUser currentUser)
 {
@@ -27,7 +28,10 @@ public class PurchaseOrderApplicationService(
 
         var existing = await repository.FindByIdempotencyKeyAsync(idempotencyKey, cancellationToken);
         if (existing is not null)
+        {
+            await requestLifecycle.EnsureOrderedAsync(existing.SourceDecision.PurchaseRequestId, existing.OrderNumber.Value, cancellationToken);
             return new PurchaseOrderGenerationResult(ToView(existing), false);
+        }
 
         var existingForSimulation = await repository.FindBySimulationAsync(command.SimulationRunId.ToString(), cancellationToken);
         if (existingForSimulation is not null)
@@ -35,11 +39,16 @@ public class PurchaseOrderApplicationService(
             if (existingForSimulation.SourceDecision.QuotationId != command.QuotationId)
                 throw new ConflictException("The simulation run already produced an order for a different quotation.");
 
+            await requestLifecycle.EnsureOrderedAsync(existingForSimulation.SourceDecision.PurchaseRequestId, existingForSimulation.OrderNumber.Value, cancellationToken);
             return new PurchaseOrderGenerationResult(ToView(existingForSimulation), false);
         }
 
         var snapshot = await decisionReader.GetApprovedSnapshotAsync(command.SimulationRunId, command.QuotationId, cancellationToken)
             ?? throw new NotFoundException($"No approved simulation decision was found for run '{command.SimulationRunId}' and quotation '{command.QuotationId}'.");
+
+        var existingForRequest = await repository.FindByRequestAsync(snapshot.RequestId, cancellationToken);
+        if (existingForRequest is not null)
+            throw new ConflictException("This purchase request already has an approved purchase order.");
 
         var decision = decisionMapper.Map(snapshot, command.DeliveryConditions, command.DeliveryDestination);
         var approval = new Approval(new UserId(currentUser.UserId), DateTimeOffset.UtcNow, idempotencyKey);
@@ -52,6 +61,8 @@ public class PurchaseOrderApplicationService(
 
         await domainEventDispatcher.DispatchAsync(order.DomainEvents, cancellationToken);
         order.ClearDomainEvents();
+
+        await requestLifecycle.EnsureOrderedAsync(snapshot.RequestId, order.OrderNumber.Value, cancellationToken);
 
         return new PurchaseOrderGenerationResult(ToView(order), true);
     }
@@ -70,6 +81,12 @@ public class PurchaseOrderApplicationService(
             ?? throw new NotFoundException($"No purchase order was found for simulation run '{simulationRunId}'.");
 
         return ToView(order);
+    }
+
+    public async Task<PurchaseOrderView?> GetByRequestAsync(Guid requestId, CancellationToken cancellationToken = default)
+    {
+        var order = await repository.FindByRequestAsync(requestId.ToString(), cancellationToken);
+        return order is null ? null : ToView(order);
     }
 
     private static PurchaseOrderView ToView(PurchaseOrder order) => new(

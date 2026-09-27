@@ -87,4 +87,13 @@ public class SimulationsController(
         var view = await simulationService.GetResultAsync(simulationRunId, cancellationToken);
         return Ok(SimulationResultResourceFromViewAssembler.ToResource(view));
     }
+
+    [HttpGet("api/v1/purchase-requests/{requestId:guid}/simulations")]
+    [ProducesResponseType<IReadOnlyList<SimulationResultResource>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<SimulationResultResource>>> ListForRequest(
+        Guid requestId, CancellationToken cancellationToken)
+    {
+        var views = await simulationService.GetForRequestAsync(requestId, cancellationToken);
+        return Ok(views.Select(SimulationResultResourceFromViewAssembler.ToResource).ToList());
+    }
 }

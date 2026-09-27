@@ -12,6 +12,7 @@ public sealed class StubQuoteExtractionAgent : IQuoteExtractionAgent
 {
     public Task<ExtractionResult> ExtractAsync(
         QuotationDocument document,
+        PurchaseRequestReferenceData request,
         CancellationToken cancellationToken = default)
     {
         var shortHash = Convert.ToHexStringLower(SHA256.HashData(document.Content))[..8];
@@ -19,6 +20,7 @@ public sealed class StubQuoteExtractionAgent : IQuoteExtractionAgent
 
         return Task.FromResult(new ExtractionResult(
             "Local Demo Supplier",
+            "00000000000",
             DateOnly.FromDateTime(DateTime.UtcNow.AddDays(15)),
             "PEN",
             3,
@@ -30,6 +32,7 @@ public sealed class StubQuoteExtractionAgent : IQuoteExtractionAgent
                 [new ExtractedSpecificationResult("documentReference", shortHash, string.Empty)])],
             [
                 new ExtractedFieldResult("supplier.businessName", "Local Demo Supplier", 1m, 1, source, true),
+                new ExtractedFieldResult("supplier.taxIdentifier", "00000000000", 1m, 1, source, true),
                 new ExtractedFieldResult("validUntil", DateOnly.FromDateTime(DateTime.UtcNow.AddDays(15)).ToString("O"), 1m, 1, source, true),
                 new ExtractedFieldResult("currency", "PEN", 1m, 1, source, true),
                 new ExtractedFieldResult("deliveryLeadTimeDays", "3", 1m, 1, source, true),

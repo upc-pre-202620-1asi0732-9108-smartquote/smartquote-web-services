@@ -11,4 +11,6 @@ public interface IPurchaseOrderRepository : IBaseRepository<PurchaseOrder>
     Task<PurchaseOrder?> FindBySimulationAsync(string simulationRunId, CancellationToken cancellationToken = default);
 
     Task<PurchaseOrder?> FindByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken = default);
+
+    Task<PurchaseOrder?> FindByRequestAsync(string requestId, CancellationToken cancellationToken = default);
 }

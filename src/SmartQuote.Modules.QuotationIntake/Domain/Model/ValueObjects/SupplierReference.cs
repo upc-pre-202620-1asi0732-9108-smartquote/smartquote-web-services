@@ -13,14 +13,8 @@ public record SupplierReference
         if (string.IsNullOrWhiteSpace(supplierId))
             throw new DomainException("Supplier id is required.");
 
-        if (string.IsNullOrWhiteSpace(businessName))
-            throw new DomainException("Supplier business name is required.");
-
-        if (string.IsNullOrWhiteSpace(taxIdentifier))
-            throw new DomainException("Supplier tax identifier is required.");
-
         SupplierId = supplierId;
-        BusinessName = businessName;
-        TaxIdentifier = taxIdentifier;
+        BusinessName = businessName?.Trim() ?? string.Empty;
+        TaxIdentifier = taxIdentifier?.Trim() ?? string.Empty;
     }
 }

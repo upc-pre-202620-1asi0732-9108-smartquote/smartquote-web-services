@@ -27,4 +27,15 @@ public class SimulationRunRepository(EvaluationSimulationDbContext context)
         await Context.SimulationRuns
             .Where(run => run.InputFingerprint == fingerprint)
             .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<SimulationRun>> GetForRequestAsync(string requestId, CancellationToken cancellationToken = default) =>
+        await Context.SimulationRuns
+            .AsSplitQuery()
+            .Include(run => run.Evaluations)
+            .Include(run => run.RequestSnapshot!.Items).ThenInclude(item => item.Requirements)
+            .Include(run => run.QuotationSnapshots).ThenInclude(snapshot => snapshot.Lines).ThenInclude(line => line.Specifications)
+            .Where(run => run.RequestSnapshot.RequestId == requestId)
+            .OrderByDescending(run => run.ExecutedAt)
+            .Take(20)
+            .ToListAsync(cancellationToken);
 }

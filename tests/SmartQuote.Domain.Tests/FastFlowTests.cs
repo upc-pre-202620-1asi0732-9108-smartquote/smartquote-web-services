@@ -1,0 +1,113 @@
+using SmartQuote.API.Shared.Domain.Model.ValueObjects;
+using SmartQuote.Modules.EvaluationSimulation.Domain.Model.Entities;
+using SmartQuote.Modules.EvaluationSimulation.Domain.Model.Aggregates;
+using SmartQuote.Modules.EvaluationSimulation.Domain.Model.Enums;
+using SmartQuote.Modules.EvaluationSimulation.Domain.Model.ValueObjects;
+using SmartQuote.Modules.EvaluationSimulation.Domain.Services;
+using SmartQuote.Modules.QuotationIntake.Domain.Model.Aggregates;
+using SmartQuote.Modules.QuotationIntake.Domain.Model.ValueObjects;
+using Xunit;
+
+namespace SmartQuote.Domain.Tests;
+
+public class FastFlowTests
+{
+    [Fact]
+    public void SupplierCanBeExtractedAndCorrectedBeforeVerification()
+    {
+        var quote = PoultryQuote.Create(
+            new PurchaseRequestReference(Guid.NewGuid().ToString()),
+            new SupplierReference(Guid.NewGuid().ToString("N"), "", ""),
+            new SourceDocument("offer.pdf", "application/pdf", "test-storage-key", new string('a', 64)));
+        quote.BeginExtraction();
+        quote.ApplyExtraction(new ExtractedQuotationData(
+            new SupplierReference(quote.Supplier.SupplierId, "Acme Aves", ""),
+            new DateOnly(2026, 12, 31), "PEN", 3,
+            [new ExtractedLineData("Alimento balanceado", 1000, "kg", 4.5m, [])],
+            [
+                new ExtractedFieldData("supplier.businessName", "Acme Aves", 1m, 1, "Acme Aves", true),
+                new ExtractedFieldData("validUntil", "2026-12-31", 1m, 1, "Válido", true),
+                new ExtractedFieldData("currency", "PEN", 1m, 1, "PEN", true),
+                new ExtractedFieldData("deliveryLeadTimeDays", "3", 1m, 1, "3 días", true),
+                new ExtractedFieldData("lines[0].description", "Alimento balanceado", 1m, 1, "Alimento", true),
+                new ExtractedFieldData("lines[0].quantity", "1000", 1m, 1, "1000 kg", true),
+                new ExtractedFieldData("lines[0].unitOfMeasure", "kg", 1m, 1, "kg", true),
+                new ExtractedFieldData("lines[0].unitPrice", "4.50", 1m, 1, "4.50", true)
+            ]));
+
+        Assert.True(quote.HasUnresolvedRequiredFields());
+        var field = quote.Fields.Single(value => value.FieldPath == "supplier.taxIdentifier");
+        quote.CorrectField(field.Id, "20123456789", new UserId(Guid.NewGuid()), "Verified against the quotation PDF.");
+        Assert.False(quote.HasUnresolvedRequiredFields());
+        Assert.Equal("20123456789", quote.Supplier.TaxIdentifier);
+        quote.AddMissingSpecification(quote.Lines[0].Id, "Proteína", "20,5", "%", 1,
+            "Proteína 20,5 %", new UserId(Guid.NewGuid()), "Omitted by the extraction agent.");
+        Assert.Equal("20,5", quote.Lines[0].Specifications.Single().Value);
+        Assert.Contains(quote.Fields, extracted => extracted.FieldPath == "lines[0].specifications[0].value" &&
+            extracted.Source.TextReference == "Proteína 20,5 %");
+    }
+
+    [Fact]
+    public void TechnicalComparisonAcceptsDecimalCommaAndRejectsIncompatibleUnits()
+    {
+        var criterion = EvaluationCriterion.Create("Proteína mínima", Guid.NewGuid().ToString(),
+            CriterionCategory.TechnicalCompliance, CriterionMode.Mandatory,
+            ComparisonOperator.GreaterThanOrEqual, "20", "%", 0, 1);
+        var supported = new CriterionEvaluationInput(100, 3,
+            new Dictionary<string, QuotationSpecificationSnapshotData>
+            {
+                [criterion.TargetField] = new("Proteína", "20,5", "%")
+            });
+        Assert.True(criterion.Evaluate(supported).Passed);
+        Assert.Contains("Cumple", criterion.Evaluate(supported).Explanation);
+
+        var mismatched = new CriterionEvaluationInput(100, 3,
+            new Dictionary<string, QuotationSpecificationSnapshotData>
+            {
+                [criterion.TargetField] = new("Proteína", "20.5", "kg")
+            });
+        Assert.False(criterion.Evaluate(mismatched).Passed);
+    }
+
+    [Fact]
+    public void StatusOnlyRequestVersionChangeDoesNotInvalidateDecisionInput()
+    {
+        var id = Guid.NewGuid().ToString();
+        var initial = new RequestEvaluationSnapshot(id, 4, new DateOnly(2026, 12, 31), "Normal", [], DateTimeOffset.UtcNow);
+        var afterStatusChange = new RequestEvaluationSnapshot(id, 5, initial.RequiredDate, initial.Priority, [], DateTimeOffset.UtcNow);
+        Assert.Equal(new EvaluationDataset(initial, []).CalculateFingerprint(),
+            new EvaluationDataset(afterStatusChange, []).CalculateFingerprint());
+    }
+
+    [Fact]
+    public void SimulationMatchesDocumentedCrudeProteinToMinimumProteinRequirement()
+    {
+        var requestId = Guid.NewGuid().ToString();
+        var itemId = Guid.NewGuid().ToString();
+        var requirementId = Guid.NewGuid().ToString();
+        var scenario = EvaluationScenario.Create(requestId, new UserId(Guid.NewGuid()));
+        scenario.AddCriterion(EvaluationCriterion.Create("Proteína mínima", requirementId,
+            CriterionCategory.TechnicalCompliance, CriterionMode.Mandatory,
+            ComparisonOperator.GreaterThanOrEqual, "20", "%", 0, 1));
+        scenario.AddCriterion(EvaluationCriterion.Create("Precio total", "totalPrice",
+            CriterionCategory.Price, CriterionMode.Weighted,
+            ComparisonOperator.LessThanOrEqual, "999999", "", 100, 2));
+        scenario.Activate();
+
+        var request = new RequestEvaluationSnapshot(requestId, 3, new DateOnly(2026, 12, 31), "Normal",
+            [new RequestItemSnapshotData(itemId, 1, "Alimento balanceado", 1000, "kg",
+                [new RequestRequirementSnapshotData(requirementId, "Proteína mínima",
+                    ComparisonOperator.GreaterThanOrEqual, "20", "%", true)])], DateTimeOffset.UtcNow);
+
+        QuotationEvaluationSnapshot Quote(string name, string protein, decimal price) => new(
+            Guid.NewGuid().ToString(), 3, Guid.NewGuid().ToString(), name, "20123456789", "PEN", 3,
+            DateTimeOffset.UtcNow,
+            [new QuotationLineSnapshotData(Guid.NewGuid().ToString(), itemId, 1, "Alimento", 1000, "kg", price,
+                [new QuotationSpecificationSnapshotData("Crude protein", protein, "%")])], DateTimeOffset.UtcNow);
+
+        var run = new SimulationEngine().Run(scenario,
+            new EvaluationDataset(request, [Quote("A", "21", 4.5m), Quote("B", "20,5", 4.6m)]));
+        Assert.All(run.Evaluations, evaluation => Assert.True(evaluation.IsEligible));
+        Assert.NotNull(run.Recommendation);
+    }
+}

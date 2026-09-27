@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SmartQuote.API.PurchaseOrdering.Infrastructure.Persistence.EFC.Configuration;
@@ -11,9 +12,11 @@ using SmartQuote.API.PurchaseOrdering.Infrastructure.Persistence.EFC.Configurati
 namespace SmartQuote.Modules.PurchaseOrdering.Infrastructure.Persistence.EFC.Migrations
 {
     [DbContext(typeof(PurchaseOrderingDbContext))]
-    partial class PurchaseOrderingDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260927042032_UniqueOrderPerRequest")]
+    partial class UniqueOrderPerRequest
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

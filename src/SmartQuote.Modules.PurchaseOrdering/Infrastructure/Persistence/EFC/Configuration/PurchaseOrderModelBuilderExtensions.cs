@@ -55,6 +55,7 @@ public static class PurchaseOrderModelBuilderExtensions
                 decision.Property(d => d.InputFingerprint).HasColumnName("input_fingerprint").HasColumnType("char(64)").IsRequired();
 
                 decision.HasIndex(d => d.SimulationRunId).IsUnique();
+                decision.HasIndex(d => d.PurchaseRequestId).IsUnique();
             });
 
             entity.OwnsOne(order => order.Supplier, supplier =>

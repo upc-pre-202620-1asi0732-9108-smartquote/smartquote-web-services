@@ -53,7 +53,10 @@ public class QuoteExtractionService(
         {
             var quote = PoultryQuote.Create(
                 new PurchaseRequestReference(requestId),
-                new SupplierReference(command.SupplierId, command.SupplierBusinessName, command.SupplierTaxIdentifier),
+                new SupplierReference(
+                    string.IsNullOrWhiteSpace(command.SupplierId) ? Guid.NewGuid().ToString("N") : command.SupplierId,
+                    command.SupplierBusinessName ?? string.Empty,
+                    command.SupplierTaxIdentifier ?? string.Empty),
                 new SourceDocument(command.FileName, normalizedContentType, storageKey, hash));
 
             await repository.AddAsync(quote, cancellationToken);
@@ -74,20 +77,30 @@ public class QuoteExtractionService(
     public async Task ProcessAsync(Guid quotationId, CancellationToken cancellationToken = default)
     {
         var quote = await FindOrThrowAsync(quotationId, cancellationToken);
+        var request = await requestReferenceReader.GetActiveAsync(Guid.Parse(quote.RequestReference.RequestId), cancellationToken)
+            ?? throw new DomainException("The purchase request is not accepting quotation processing.");
         quote.BeginExtraction();
+        await unitOfWork.CompleteAsync(cancellationToken);
 
         Exception? failure = null;
         try
         {
             var content = await documentStorage.GetAsync(quote.SourceDocument.StorageKey, cancellationToken);
             var document = new QuotationDocument(quote.SourceDocument.FileName, quote.SourceDocument.ContentType, content);
-            var result = await extractionAgent.ExtractAsync(document, cancellationToken);
+            var result = await extractionAgent.ExtractAsync(document, request, cancellationToken);
             var minimumConfidence = configuration.GetValue("AI:MinimumConfidence", 0.75m);
 
             ValidateExtraction(result);
 
+            string? EvidenceValue(string path) => result.Fields.FirstOrDefault(field =>
+                field.FieldPath.Equals(path, StringComparison.OrdinalIgnoreCase) &&
+                field.IsResolved && field.Confidence >= minimumConfidence)?.Value;
+
             var data = new ExtractedQuotationData(
-                quote.Supplier,
+                new SupplierReference(
+                    quote.Supplier.SupplierId,
+                    EvidenceValue("supplier.businessName") ?? quote.Supplier.BusinessName,
+                    EvidenceValue("supplier.taxIdentifier") ?? quote.Supplier.TaxIdentifier),
                 result.ValidUntil,
                 result.Currency?.Trim().ToUpperInvariant(),
                 result.DeliveryLeadTimeDays,
@@ -122,6 +135,12 @@ public class QuoteExtractionService(
         {
             quote.Reject("The extracted quotation data violates a required business rule.");
             failure = new UnprocessableDocumentException("The extracted quotation data is invalid or incomplete.", exception);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            quote.Reject("Processing was interrupted and may be retried.");
+            await unitOfWork.CompleteAsync(CancellationToken.None);
+            throw;
         }
         catch (Exception exception)
         {
@@ -178,6 +197,17 @@ public class QuoteExtractionService(
         await unitOfWork.CompleteAsync(cancellationToken);
     }
 
+    public async Task AddMissingSpecificationAsync(Guid quotationId, Guid lineId, string name, string value,
+        string unitOfMeasure, int sourcePage, string sourceText, string reason, long expectedVersion,
+        CancellationToken cancellationToken = default)
+    {
+        var quote = await FindOrThrowAsync(quotationId, cancellationToken);
+        EnsureVersion(quote.Version, expectedVersion);
+        quote.AddMissingSpecification(new QuotationLineId(lineId), name, value, unitOfMeasure,
+            sourcePage, sourceText, new UserId(currentUser.UserId), reason);
+        await unitOfWork.CompleteAsync(cancellationToken);
+    }
+
     public async Task<PoultryQuoteView> GetExtractionAsync(
         Guid quotationId,
         CancellationToken cancellationToken = default) =>
@@ -226,6 +256,8 @@ public class QuoteExtractionService(
 
     private static void ValidateExtraction(ExtractionResult result)
     {
+        if (result.Lines is null || result.Fields is null)
+            throw new UnprocessableDocumentException("The extraction provider returned no line or field collection.");
         if (result.Fields.Any(field =>
                 string.IsNullOrWhiteSpace(field.FieldPath) ||
                 field.Confidence is < 0 or > 1 ||

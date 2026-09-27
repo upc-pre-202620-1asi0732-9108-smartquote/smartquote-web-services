@@ -4,5 +4,5 @@ namespace SmartQuote.Modules.QuotationIntake.Application.Ports;
 
 public interface IQuoteExtractionAgent
 {
-    Task<ExtractionResult> ExtractAsync(QuotationDocument document, CancellationToken cancellationToken = default);
+    Task<ExtractionResult> ExtractAsync(QuotationDocument document, PurchaseRequestReferenceData request, CancellationToken cancellationToken = default);
 }

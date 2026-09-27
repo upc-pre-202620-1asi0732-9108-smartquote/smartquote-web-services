@@ -160,4 +160,15 @@ public class PoultryQuotesController(QuoteExtractionService extractionService) :
         await extractionService.CorrectFieldAsync(command, cancellationToken);
         return NoContent();
     }
+
+    [HttpPost("api/v1/quotations/{quotationId:guid}/lines/{lineId:guid}/specifications")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<ActionResult> AddMissingSpecification(Guid quotationId, Guid lineId,
+        [FromBody] AddSpecificationResource resource, CancellationToken cancellationToken)
+    {
+        await extractionService.AddMissingSpecificationAsync(quotationId, lineId, resource.Name, resource.Value,
+            resource.UnitOfMeasure, resource.SourcePageNumber, resource.SourceTextReference, resource.Reason,
+            resource.ExpectedVersion, cancellationToken);
+        return NoContent();
+    }
 }

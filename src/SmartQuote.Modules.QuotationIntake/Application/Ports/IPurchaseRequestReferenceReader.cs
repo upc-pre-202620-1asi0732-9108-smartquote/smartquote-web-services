@@ -9,4 +9,10 @@ public sealed record PurchaseRequestReferenceData(
     Guid RequestId,
     long Version,
     string Status,
-    IReadOnlySet<Guid> RequestedItemIds);
+    IReadOnlySet<Guid> RequestedItemIds,
+    IReadOnlyList<RequestedQuotationItem> Items);
+
+public sealed record RequestedQuotationItem(Guid ItemId, string Description, decimal Quantity, string UnitOfMeasure,
+    IReadOnlyList<RequestedQuotationRequirement> Requirements);
+
+public sealed record RequestedQuotationRequirement(string Name, string ExpectedValue, string UnitOfMeasure, bool IsMandatory);

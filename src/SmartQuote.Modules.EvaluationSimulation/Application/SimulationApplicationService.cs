@@ -35,6 +35,9 @@ public class SimulationApplicationService(
 
         var dataset = inputAssembler.Assemble(requestSnapshot, quotationSnapshots);
 
+        if (quotationSnapshots.Select(quotation => quotation.Currency).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1)
+            throw new DomainException("Verified quotations must use the same currency before a comparison can be run.");
+
         if (!requestSnapshot.Status.Equals("Evaluation", StringComparison.OrdinalIgnoreCase))
             throw new DomainException("The purchase request must be in Evaluation status before running a simulation.");
 
@@ -62,6 +65,18 @@ public class SimulationApplicationService(
         var isCurrent = run.IsBasedOn(currentFingerprint);
 
         return ToView(run, isCurrent);
+    }
+
+    public async Task<IReadOnlyList<SimulationResultView>> GetForRequestAsync(Guid requestId, CancellationToken cancellationToken = default)
+    {
+        var runs = await runRepository.GetForRequestAsync(requestId.ToString(), cancellationToken);
+        var views = new List<SimulationResultView>(runs.Count);
+        foreach (var run in runs)
+        {
+            var fingerprint = await validityService.CalculateCurrentFingerprintAsync(run, cancellationToken);
+            views.Add(ToView(run, run.IsBasedOn(fingerprint)));
+        }
+        return views;
     }
 
     public async Task<ApprovedSimulationSnapshot?> GetApprovedSnapshotAsync(Guid runId, string quotationId, CancellationToken cancellationToken = default)

@@ -25,6 +25,9 @@ public class SimulationValidityService(
         var scenario = await scenarioRepository.GetByIdAsync(simulationRun.ScenarioId, cancellationToken)
             ?? throw new NotFoundException($"Evaluation scenario '{simulationRun.ScenarioId}' was not found.");
 
+        if (scenario.Status != SmartQuote.Modules.EvaluationSimulation.Domain.Model.Enums.ScenarioStatus.Active)
+            return InputFingerprint.FromParts("superseded-scenario", simulationRun.Id.ToString());
+
         var requestSnapshot = await requestSnapshotReader.GetCurrentAsync(scenario.RequestId, cancellationToken)
             ?? throw new NotFoundException($"Purchase request '{scenario.RequestId}' was not found.");
 

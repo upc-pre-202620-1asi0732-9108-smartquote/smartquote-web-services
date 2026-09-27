@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using SmartQuote.API.Configuration;
+using SmartQuote.API.Integration;
+using SmartQuote.API.PurchaseOrdering.Application.Ports;
 using SmartQuote.API.PurchaseOrdering.Infrastructure.Persistence.EFC.Configuration;
 using SmartQuote.API.Security;
 using SmartQuote.API.Shared.Application.Security;
@@ -127,6 +129,7 @@ builder.Services.AddSupplyRequestsModule(builder.Configuration, connectionString
 builder.Services.AddQuotationIntakeModule(builder.Configuration, connectionString);
 builder.Services.AddEvaluationSimulationModule(builder.Configuration, connectionString);
 builder.Services.AddPurchaseOrderingModule(builder.Configuration, connectionString);
+builder.Services.AddScoped<IOrderRequestLifecycle, OrderRequestLifecycleAdapter>();
 builder.Services.AddIdentityAccessModule(builder.Configuration, connectionString);
 
 builder.Services.AddHealthChecks()

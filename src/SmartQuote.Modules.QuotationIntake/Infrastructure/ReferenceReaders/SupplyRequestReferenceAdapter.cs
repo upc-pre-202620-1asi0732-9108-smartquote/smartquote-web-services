@@ -21,7 +21,11 @@ public class SupplyRequestReferenceAdapter(IPurchaseRequestSnapshotProvider snap
             requestId,
             snapshot.Version,
             snapshot.Status,
-            snapshot.Items.Select(item => Guid.Parse(item.ItemId)).ToHashSet());
+            snapshot.Items.Select(item => Guid.Parse(item.ItemId)).ToHashSet(),
+            snapshot.Items.Select(item => new RequestedQuotationItem(
+                Guid.Parse(item.ItemId), item.Description, item.Quantity, item.UnitOfMeasure,
+                item.Requirements.Select(requirement => new RequestedQuotationRequirement(
+                    requirement.Name, requirement.ExpectedValue, requirement.UnitOfMeasure, requirement.IsMandatory)).ToList())).ToList());
     }
 }
 

@@ -4,6 +4,14 @@ public record EvaluationDataset(RequestEvaluationSnapshot Request, IReadOnlyList
 {
     public InputFingerprint CalculateFingerprint() =>
         InputFingerprint.FromParts(
-            $"{Request.RequestId}:{Request.Version}",
+            System.Text.Json.JsonSerializer.Serialize(new
+            {
+                Request.RequestId, Request.RequiredDate, Request.Priority,
+                Items = Request.Items.OrderBy(item => item.LineNumber).Select(item => new
+                {
+                    item.SourceRequestedItemId, item.LineNumber, item.Description, item.Quantity, item.UnitOfMeasure,
+                    Requirements = item.Requirements.OrderBy(requirement => requirement.SourceRequirementId)
+                })
+            }),
             string.Join(',', Quotations.OrderBy(q => q.QuotationId).Select(q => $"{q.QuotationId}:{q.Version}")));
 }

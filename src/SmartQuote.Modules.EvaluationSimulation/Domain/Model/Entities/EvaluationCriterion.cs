@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Text.RegularExpressions;
 using SmartQuote.API.Shared.Domain;
 using SmartQuote.Modules.EvaluationSimulation.Domain.Model.Enums;
 using SmartQuote.Modules.EvaluationSimulation.Domain.Model.ValueObjects;
@@ -129,18 +130,35 @@ public class EvaluationCriterion
         var passed = ResolvePassed(input);
         var weightedContribution = normalizedScore * (Weight / 100m);
 
-        return new CriterionResult(Id, passed, normalizedScore, weightedContribution, BuildExplanation(ResolveActualValue(input), passed));
+        var actual = ResolveActualValue(input);
+        var explanation = actual is null
+            ? $"{Name}: no se encontró un valor comparable en la cotización."
+            : $"{Name}: valor observado {actual} {UnitOfMeasure}; aporte ponderado {weightedContribution * 100m:0.##} puntos de {Weight:0.##} posibles.";
+        return new CriterionResult(Id, passed, normalizedScore, weightedContribution, explanation);
     }
 
-    private string BuildExplanation(string? actualValue, bool passed) => passed
-        ? $"{Name}: '{actualValue}' satisfies {Operator} '{ExpectedValue}{UnitOfMeasure}'."
-        : $"{Name}: '{actualValue ?? "N/A"}' does not satisfy {Operator} '{ExpectedValue}{UnitOfMeasure}'.";
+    private string BuildExplanation(string? actualValue, bool passed)
+    {
+        if (actualValue is null)
+            return $"{Name}: no se encontró un dato comparable en la cotización; requisito obligatorio no acreditado.";
+        var comparison = Operator switch
+        {
+            ComparisonOperator.Equals => "igual a",
+            ComparisonOperator.Contains => "que contiene",
+            ComparisonOperator.GreaterThanOrEqual => "mayor o igual que",
+            ComparisonOperator.LessThanOrEqual => "menor o igual que",
+            _ => "comparado con"
+        };
+        return $"{Name}: valor observado {actualValue} {UnitOfMeasure}; se requiere {comparison} {ExpectedValue} {UnitOfMeasure}. " +
+               (passed ? "Cumple." : "No cumple.");
+    }
 
     private string? ResolveActualValue(CriterionEvaluationInput input) => Category switch
     {
         CriterionCategory.Price => input.TotalPrice.ToString(CultureInfo.InvariantCulture),
         CriterionCategory.DeliveryTime => input.DeliveryLeadTimeDays.ToString(CultureInfo.InvariantCulture),
         CriterionCategory.TechnicalCompliance => input.TechnicalValuesByRequirementId.TryGetValue(TargetField, out var specification)
+            && CompatibleUnit(specification.UnitOfMeasure, UnitOfMeasure)
             ? specification.Value
             : null,
         _ => null
@@ -155,6 +173,26 @@ public class EvaluationCriterion
         _ => false
     };
 
-    private static bool TryParseDecimal(string value, out decimal result) =>
-        decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out result);
+    private static bool CompatibleUnit(string actual, string expected)
+    {
+        static string Normalize(string value) => value.Trim().ToLowerInvariant() switch
+        {
+            "porcentaje" or "percent" or "pct" => "%",
+            "kilogramos" or "kilogram" => "kg",
+            _ => value.Trim().ToLowerInvariant()
+        };
+        return string.IsNullOrWhiteSpace(expected) || Normalize(actual) == Normalize(expected);
+    }
+
+    private static bool TryParseDecimal(string value, out decimal result)
+    {
+        var normalized = value.Trim().TrimEnd('%').Trim().Replace(',', '.');
+        if (!Regex.IsMatch(normalized, @"^[+-]?\d+(?:\.\d+)?$", RegexOptions.CultureInvariant))
+        {
+            result = 0;
+            return false;
+        }
+        return decimal.TryParse(normalized, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign,
+            CultureInfo.InvariantCulture, out result);
+    }
 }

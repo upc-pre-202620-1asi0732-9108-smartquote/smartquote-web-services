@@ -36,6 +36,8 @@ abrir el navegador, use `docker compose up --build -d`.
 
 Docker Compose aplica las migraciones automáticamente. La API dentro de Docker se conecta con `Host=postgres`, no con `localhost`.
 
+La carga de cotizaciones acepta archivos PDF sin datos previos del proveedor: el agente intenta extraer razón social y RUC por archivo, y el analista corrige los campos no acreditados antes de verificar. Si omite una especificación presente en el documento, `POST /api/v1/quotations/{quotationId}/lines/{lineId}/specifications` permite incorporarla con página, texto de origen, motivo y versión esperada. La simulación puede recuperarse con `GET /api/v1/purchase-requests/{requestId}/simulations` y la orden emitida con `GET /api/v1/purchase-requests/{requestId}/purchase-order`. La aprobación de una orden actualiza el estado de la solicitud a `Ordered`; una solicitud solo admite una orden. Al actualizar una instalación existente, aplique la nueva migración de `PurchaseOrdering` antes de probar la API.
+
 Para detenerlo, ejecute `docker compose down`. Agregar `-v` también elimina los datos locales de PostgreSQL.
 
 ## Ejecutar desde Rider con PostgreSQL en Docker
