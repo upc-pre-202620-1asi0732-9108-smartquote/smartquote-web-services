@@ -87,6 +87,18 @@ dotnet user-secrets set "OpenAI:Model" "gpt-4.1-mini" --project src/SmartQuote.A
 
 Con Docker Compose, copie `.env.example` a `.env` y configure allí `AI__Provider=OpenAI` y `OpenAI__ApiKey`. Ese archivo está ignorado por Git y Docker no lo incluye en la imagen; Compose solo inyecta el valor en el contenedor durante la ejecución.
 
+## Tipo de cambio SUNAT
+
+Las simulaciones comparan cotizaciones PEN y USD en soles. Para USD, el backend consulta el tipo de cambio de venta (`V`) publicado por SUNAT para el día de ejecución en Lima, conserva los importes originales y registra la tasa, fuente, fecha de publicación y hora de consulta. Si SUNAT no publica la tasa exacta o no responde, la simulación devuelve HTTP 503 y no usa una tasa anterior.
+
+Configure el token fuera del repositorio. Desde Rider/CLI:
+
+```powershell
+dotnet user-secrets set "SunatExchangeRate:Token" "YOUR_SUNAT_TOKEN" --project src/SmartQuote.API
+```
+
+Con Docker Compose, defina `SunatExchangeRate__Token` en el archivo `.env`. No copie cookies de Postman: son temporales y no forman parte de la configuración de la aplicación.
+
 ## Documentación de diagramas
 
 - Diagramas de clases PlantUML: `docs/1-supply-requests.puml`, `docs/2-quotation-intake.puml`, `docs/3-evaluation-simulation.puml`, `docs/4-purchase-ordering.puml` y `docs/5-identity-access.puml`.

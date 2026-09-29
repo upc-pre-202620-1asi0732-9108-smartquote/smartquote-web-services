@@ -110,6 +110,23 @@ public static class EvaluationSimulationModelBuilderExtensions
             ConfigureQuotationSnapshots(entity);
             ConfigureEvaluations(entity);
             ConfigureRecommendation(entity);
+            ConfigureExchangeRate(entity);
+        });
+    }
+
+    private static void ConfigureExchangeRate(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<SimulationRun> entity)
+    {
+        entity.OwnsOne(run => run.ExchangeRate, rate =>
+        {
+            rate.ToTable("simulation_exchange_rate_snapshots", Schema);
+            rate.WithOwner().HasForeignKey("simulation_run_id");
+            rate.Property(value => value.SourceCurrency).HasColumnType("char(3)").IsRequired();
+            rate.Property(value => value.TargetCurrency).HasColumnType("char(3)").IsRequired();
+            rate.Property(value => value.Rate).HasColumnType("numeric(18,6)").IsRequired();
+            rate.Property(value => value.RateType).HasMaxLength(20).IsRequired();
+            rate.Property(value => value.PublishedOn).HasColumnType("date").IsRequired();
+            rate.Property(value => value.Source).HasMaxLength(200).IsRequired();
+            rate.Property(value => value.RetrievedAt).IsRequired();
         });
     }
 

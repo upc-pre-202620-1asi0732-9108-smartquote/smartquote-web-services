@@ -2,6 +2,7 @@
 using SmartQuote.Modules.EvaluationSimulation.Domain.Model.Entities;
 using SmartQuote.Modules.EvaluationSimulation.Domain.Model.Enums;
 using SmartQuote.Modules.EvaluationSimulation.Domain.Model.ValueObjects;
+using SmartQuote.API.Shared.Domain;
 using System.Globalization;
 using System.Text;
 
@@ -9,18 +10,18 @@ namespace SmartQuote.Modules.EvaluationSimulation.Domain.Services;
 
 public class SimulationEngine
 {
-    public SimulationRun Run(EvaluationScenario scenario, EvaluationDataset dataset)
+    public SimulationRun Run(EvaluationScenario scenario, EvaluationDataset dataset, ExchangeRateSnapshot? exchangeRate = null)
     {
-        var fingerprint = InputFingerprint.FromParts(dataset.CalculateFingerprint().Value, scenario.CalculateDefinitionFingerprint().Value);
+        var fingerprint = InputFingerprint.FromParts(dataset.CalculateFingerprint(exchangeRate).Value, scenario.CalculateDefinitionFingerprint().Value);
 
-        var run = SimulationRun.Create(scenario.Id, scenario.Version, fingerprint, dataset.Request, dataset.Quotations);
+        var run = SimulationRun.Create(scenario.Id, scenario.Version, fingerprint, dataset.Request, dataset.Quotations, exchangeRate);
 
         var evaluations = new List<(QuotationEvaluation Evaluation, CriterionEvaluationInput Input)>();
 
         foreach (var quotationSnapshot in dataset.Quotations)
         {
             var evaluation = QuotationEvaluation.Create(quotationSnapshot.QuotationId);
-            var input = BuildCriterionInput(dataset.Request, quotationSnapshot);
+            var input = BuildCriterionInput(dataset.Request, quotationSnapshot, exchangeRate);
 
             ApplyMandatoryCriteria(scenario, input, evaluation);
 
@@ -103,7 +104,8 @@ public class SimulationEngine
 
     private static CriterionEvaluationInput BuildCriterionInput(
         RequestEvaluationSnapshot requestSnapshot,
-        QuotationEvaluationSnapshot quotationSnapshot)
+        QuotationEvaluationSnapshot quotationSnapshot,
+        ExchangeRateSnapshot? exchangeRate)
     {
         var technicalValues = new Dictionary<string, QuotationSpecificationSnapshotData>(StringComparer.OrdinalIgnoreCase);
 
@@ -126,8 +128,14 @@ public class SimulationEngine
             }
         }
 
+        var originalTotal = quotationSnapshot.TotalPrice();
+        var comparableTotal = exchangeRate?.Convert(originalTotal) ?? originalTotal;
+
+        if (comparableTotal.Currency != "PEN")
+            throw new DomainException($"Quotation currency '{comparableTotal.Currency}' requires an official conversion rate before simulation.");
+
         return new CriterionEvaluationInput(
-            quotationSnapshot.TotalPrice().Amount,
+            comparableTotal.Amount,
             quotationSnapshot.DeliveryLeadTimeDays,
             technicalValues);
     }

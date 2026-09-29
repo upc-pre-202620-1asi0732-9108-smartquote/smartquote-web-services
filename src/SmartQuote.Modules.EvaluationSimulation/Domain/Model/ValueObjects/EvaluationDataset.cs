@@ -2,7 +2,7 @@
 
 public record EvaluationDataset(RequestEvaluationSnapshot Request, IReadOnlyList<QuotationEvaluationSnapshot> Quotations)
 {
-    public InputFingerprint CalculateFingerprint() =>
+    public InputFingerprint CalculateFingerprint(ExchangeRateSnapshot? exchangeRate = null) =>
         InputFingerprint.FromParts(
             System.Text.Json.JsonSerializer.Serialize(new
             {
@@ -13,5 +13,6 @@ public record EvaluationDataset(RequestEvaluationSnapshot Request, IReadOnlyList
                     Requirements = item.Requirements.OrderBy(requirement => requirement.SourceRequirementId)
                 })
             }),
-            string.Join(',', Quotations.OrderBy(q => q.QuotationId).Select(q => $"{q.QuotationId}:{q.Version}")));
+            string.Join(',', Quotations.OrderBy(q => q.QuotationId).Select(q => $"{q.QuotationId}:{q.Version}")),
+            exchangeRate?.FingerprintPart() ?? "NO_CURRENCY_CONVERSION");
 }

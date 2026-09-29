@@ -110,4 +110,39 @@ public class FastFlowTests
         Assert.All(run.Evaluations, evaluation => Assert.True(evaluation.IsEligible));
         Assert.NotNull(run.Recommendation);
     }
+
+    [Fact]
+    public void SimulationComparesPenAndUsdUsingRecordedOfficialRate()
+    {
+        var requestId = Guid.NewGuid().ToString();
+        var scenario = EvaluationScenario.Create(requestId, new UserId(Guid.NewGuid()));
+        scenario.AddCriterion(EvaluationCriterion.Create("Plazo máximo", "deliveryLeadTimeDays",
+            CriterionCategory.DeliveryTime, CriterionMode.Mandatory,
+            ComparisonOperator.LessThanOrEqual, "10", "days", 0, 1));
+        scenario.AddCriterion(EvaluationCriterion.Create("Precio total", "totalPrice",
+            CriterionCategory.Price, CriterionMode.Weighted,
+            ComparisonOperator.LessThanOrEqual, "999999", "PEN", 100, 2));
+        scenario.Activate();
+
+        var request = new RequestEvaluationSnapshot(
+            requestId, 1, new DateOnly(2026, 12, 31), "Normal", [], DateTimeOffset.UtcNow);
+
+        QuotationEvaluationSnapshot Quote(string currency, decimal unitPrice) => new(
+            Guid.NewGuid().ToString(), 1, Guid.NewGuid().ToString(), "Supplier", "20123456789",
+            currency, 3, DateTimeOffset.UtcNow,
+            [new QuotationLineSnapshotData(Guid.NewGuid().ToString(), null, 1, "Supply", 1000, "kg", unitPrice, [])],
+            DateTimeOffset.UtcNow);
+
+        var usd = Quote("USD", 1m);
+        var pen = Quote("PEN", 3.6m);
+        var rate = new ExchangeRateSnapshot(
+            "USD", "PEN", 3.5m, "V", new DateOnly(2026, 9, 29),
+            "SUNAT - Consulta de Tipo de Cambio", DateTimeOffset.UtcNow);
+
+        var run = new SimulationEngine().Run(scenario, new EvaluationDataset(request, [usd, pen]), rate);
+
+        Assert.Equal(usd.QuotationId, run.Recommendation!.QuotationId);
+        Assert.Equal(1, run.GetEvaluation(usd.QuotationId).Rank);
+        Assert.Equal(rate, run.ExchangeRate);
+    }
 }

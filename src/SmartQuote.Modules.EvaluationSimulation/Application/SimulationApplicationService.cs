@@ -15,10 +15,12 @@ public class SimulationApplicationService(
     IPurchaseRequestSnapshotReader requestSnapshotReader,
     IVerifiedQuotationSnapshotReader quotationSnapshotReader,
     EvaluationInputAssembler inputAssembler,
+    IExchangeRateProvider exchangeRateProvider,
     SimulationEngine simulationEngine,
     SimulationValidityService validityService,
     IEvaluationSimulationUnitOfWork unitOfWork,
-    IDomainEventDispatcher domainEventDispatcher) : ISimulationDecisionReader
+    IDomainEventDispatcher domainEventDispatcher,
+    TimeProvider timeProvider) : ISimulationDecisionReader
 {
     public async Task<SimulationRunExecutionResult> RunAsync(Guid scenarioId, CancellationToken cancellationToken = default)
     {
@@ -35,18 +37,31 @@ public class SimulationApplicationService(
 
         var dataset = inputAssembler.Assemble(requestSnapshot, quotationSnapshots);
 
-        if (quotationSnapshots.Select(quotation => quotation.Currency).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1)
-            throw new DomainException("Verified quotations must use the same currency before a comparison can be run.");
+        var currencies = quotationSnapshots
+            .Select(quotation => quotation.Currency.Trim().ToUpperInvariant())
+            .Distinct(StringComparer.Ordinal)
+            .ToHashSet(StringComparer.Ordinal);
+        var unsupportedCurrencies = currencies.Except(["PEN", "USD"], StringComparer.Ordinal).ToList();
+        if (unsupportedCurrencies.Count > 0)
+            throw new DomainException($"Unsupported quotation currency: {string.Join(", ", unsupportedCurrencies)}. Only PEN and USD can be compared.");
 
         if (!requestSnapshot.Status.Equals("Evaluation", StringComparison.OrdinalIgnoreCase))
             throw new DomainException("The purchase request must be in Evaluation status before running a simulation.");
 
-        var fingerprint = InputFingerprint.FromParts(dataset.CalculateFingerprint().Value, scenario.CalculateDefinitionFingerprint().Value);
+        ExchangeRateSnapshot? exchangeRate = null;
+        if (currencies.Contains("USD"))
+        {
+            var utcNow = timeProvider.GetUtcNow();
+            var peruDate = DateOnly.FromDateTime(utcNow.UtcDateTime.AddHours(-5));
+            exchangeRate = await exchangeRateProvider.GetUsdToPenAsync(peruDate, cancellationToken);
+        }
+
+        var fingerprint = InputFingerprint.FromParts(dataset.CalculateFingerprint(exchangeRate).Value, scenario.CalculateDefinitionFingerprint().Value);
         var existingRun = await runRepository.FindByFingerprintAsync(fingerprint, cancellationToken);
         if (existingRun is not null)
             return new SimulationRunExecutionResult(existingRun.Id, false);
 
-        var run = simulationEngine.Run(scenario, dataset);
+        var run = simulationEngine.Run(scenario, dataset, exchangeRate);
 
         await runRepository.AddAsync(run, cancellationToken);
         await unitOfWork.CompleteAsync(cancellationToken);
@@ -123,11 +138,30 @@ public class SimulationApplicationService(
         run.ExecutedAt,
         isCurrent,
         run.Recommendation is null ? null : new RecommendationView(run.Recommendation.QuotationId, run.Recommendation.Score.Value, run.Recommendation.Explanation),
-        run.Evaluations.Select(evaluation => new QuotationEvaluationView(
-            evaluation.QuotationId,
-            evaluation.IsEligible,
-            evaluation.TotalScore.Value,
-            evaluation.Rank,
-            evaluation.CriterionResults.Select(result => new CriterionResultView(result.CriterionId, result.Passed, result.NormalizedScore, result.WeightedContribution, result.Explanation)).ToList(),
-            evaluation.ExclusionReasons.Select(reason => new ExclusionReasonView(reason.CriterionId, reason.Code, reason.Explanation)).ToList())).ToList());
+        run.ExchangeRate is null ? null : new ExchangeRateView(
+            run.ExchangeRate.SourceCurrency,
+            run.ExchangeRate.TargetCurrency,
+            run.ExchangeRate.Rate,
+            run.ExchangeRate.RateType,
+            run.ExchangeRate.PublishedOn,
+            run.ExchangeRate.Source,
+            run.ExchangeRate.RetrievedAt),
+        run.Evaluations.Select(evaluation =>
+        {
+            var quotation = run.QuotationSnapshots.First(snapshot => snapshot.QuotationId == evaluation.QuotationId);
+            var originalTotal = quotation.TotalPrice();
+            var comparableTotal = run.ExchangeRate?.Convert(originalTotal) ?? originalTotal;
+            return new QuotationEvaluationView(
+                evaluation.QuotationId,
+                evaluation.IsEligible,
+                evaluation.TotalScore.Value,
+                evaluation.Rank,
+                originalTotal.Amount,
+                originalTotal.Currency,
+                comparableTotal.Amount,
+                comparableTotal.Currency,
+                originalTotal.Currency != comparableTotal.Currency,
+                evaluation.CriterionResults.Select(result => new CriterionResultView(result.CriterionId, result.Passed, result.NormalizedScore, result.WeightedContribution, result.Explanation)).ToList(),
+                evaluation.ExclusionReasons.Select(reason => new ExclusionReasonView(reason.CriterionId, reason.Code, reason.Explanation)).ToList());
+        }).ToList());
 }

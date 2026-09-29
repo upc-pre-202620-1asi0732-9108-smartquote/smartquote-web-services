@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SmartQuote.Modules.EvaluationSimulation.Infrastructure.Persistence.EFC.Configuration;
@@ -11,9 +12,11 @@ using SmartQuote.Modules.EvaluationSimulation.Infrastructure.Persistence.EFC.Con
 namespace SmartQuote.Modules.EvaluationSimulation.Infrastructure.Persistence.EFC.Migrations
 {
     [DbContext(typeof(EvaluationSimulationDbContext))]
-    partial class EvaluationSimulationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260929232720_AddSimulationExchangeRateSnapshot")]
+    partial class AddSimulationExchangeRateSnapshot
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

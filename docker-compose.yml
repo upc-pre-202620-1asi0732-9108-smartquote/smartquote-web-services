@@ -33,6 +33,7 @@ services:
       AI__Provider: ${AI__Provider:-Stub}
       OpenAI__ApiKey: ${OpenAI__ApiKey:-}
       OpenAI__Model: ${OpenAI__Model:-gpt-4.1-mini}
+      SunatExchangeRate__Token: ${SunatExchangeRate__Token:-}
       Database__ApplyMigrations: "true"
     ports:
       - "8080:8080"

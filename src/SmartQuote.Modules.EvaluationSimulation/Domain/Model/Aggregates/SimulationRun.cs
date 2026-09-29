@@ -15,6 +15,7 @@ public class SimulationRun : AggregateRoot<SimulationRunId>
     public InputFingerprint InputFingerprint { get; private set; } = null!;
     public DateTimeOffset ExecutedAt { get; private set; }
     public Recommendation? Recommendation { get; private set; }
+    public ExchangeRateSnapshot? ExchangeRate { get; private set; }
 
     /// <summary>
     /// Immutable copies of the request and quotations used (docs/database-schema-documentation.md
@@ -33,7 +34,8 @@ public class SimulationRun : AggregateRoot<SimulationRunId>
         int criteriaVersion,
         InputFingerprint inputFingerprint,
         RequestEvaluationSnapshot requestSnapshot,
-        IReadOnlyList<QuotationEvaluationSnapshot> quotationSnapshots)
+        IReadOnlyList<QuotationEvaluationSnapshot> quotationSnapshots,
+        ExchangeRateSnapshot? exchangeRate = null)
     {
         if (quotationSnapshots.Count < 2)
             throw new DomainException("At least two eligible quotations are required to run a simulation.");
@@ -45,7 +47,8 @@ public class SimulationRun : AggregateRoot<SimulationRunId>
             CriteriaVersion = criteriaVersion,
             InputFingerprint = inputFingerprint,
             ExecutedAt = DateTimeOffset.UtcNow,
-            RequestSnapshot = requestSnapshot
+            RequestSnapshot = requestSnapshot,
+            ExchangeRate = exchangeRate
         };
 
         run._quotationSnapshots.AddRange(quotationSnapshots);

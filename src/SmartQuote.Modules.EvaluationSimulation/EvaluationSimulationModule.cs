@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using SmartQuote.Modules.EvaluationSimulation.Application;
 using SmartQuote.Modules.EvaluationSimulation.Application.OutboundServices;
 using SmartQuote.Modules.EvaluationSimulation.Application.Ports;
@@ -8,6 +9,7 @@ using SmartQuote.Modules.EvaluationSimulation.Domain.Services;
 using SmartQuote.Modules.EvaluationSimulation.Infrastructure.Persistence.EFC.Configuration;
 using SmartQuote.Modules.EvaluationSimulation.Infrastructure.Persistence.EFC.Repositories;
 using SmartQuote.Modules.EvaluationSimulation.Infrastructure.ReferenceReaders;
+using SmartQuote.Modules.EvaluationSimulation.Infrastructure.ExchangeRates;
 
 namespace SmartQuote.Modules.EvaluationSimulation;
 
@@ -27,6 +29,14 @@ public static class EvaluationSimulationModule
         services.AddScoped<ISimulationRunRepository, SimulationRunRepository>();
         services.AddScoped<IPurchaseRequestSnapshotReader, SupplyRequestSnapshotAdapter>();
         services.AddScoped<IVerifiedQuotationSnapshotReader, VerifiedQuotationSnapshotAdapter>();
+        services.TryAddSingleton(TimeProvider.System);
+        services.Configure<SunatExchangeRateOptions>(configuration.GetSection(SunatExchangeRateOptions.SectionName));
+        services.AddHttpClient<IExchangeRateProvider, SunatExchangeRateProvider>((provider, client) =>
+        {
+            var options = configuration.GetSection(SunatExchangeRateOptions.SectionName).Get<SunatExchangeRateOptions>()
+                          ?? new SunatExchangeRateOptions();
+            client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 5, 60));
+        });
         services.AddScoped<EvaluationInputAssembler>();
         services.AddScoped<SimulationEngine>();
         services.AddScoped<SimulationValidityService>();

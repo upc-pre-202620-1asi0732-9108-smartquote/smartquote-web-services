@@ -8,6 +8,7 @@ public record SimulationResultView(
     DateTimeOffset ExecutedAt,
     bool IsCurrent,
     RecommendationView? Recommendation,
+    ExchangeRateView? ExchangeRate,
     IReadOnlyList<QuotationEvaluationView> Evaluations);
 
 public record QuotationEvaluationView(
@@ -15,8 +16,22 @@ public record QuotationEvaluationView(
     bool IsEligible,
     decimal TotalScore,
     int? Rank,
+    decimal OriginalTotal,
+    string OriginalCurrency,
+    decimal ComparisonTotal,
+    string ComparisonCurrency,
+    bool ConversionApplied,
     IReadOnlyList<CriterionResultView> CriterionResults,
     IReadOnlyList<ExclusionReasonView> ExclusionReasons);
+
+public record ExchangeRateView(
+    string SourceCurrency,
+    string TargetCurrency,
+    decimal Rate,
+    string RateType,
+    DateOnly PublishedOn,
+    string Source,
+    DateTimeOffset RetrievedAt);
 
 public record CriterionResultView(Guid CriterionId, bool Passed, decimal NormalizedScore, decimal WeightedContribution, string Explanation);
 

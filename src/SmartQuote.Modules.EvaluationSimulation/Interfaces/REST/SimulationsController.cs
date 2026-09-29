@@ -65,6 +65,7 @@ public class SimulationsController(
     [HttpPost("api/v1/evaluation-scenarios/{scenarioId:guid}/simulations")]
     [ProducesResponseType<SimulationResultResource>(StatusCodes.Status201Created)]
     [ProducesResponseType<SimulationResultResource>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<SimulationResultResource>> RunSimulation(
         Guid scenarioId,
         CancellationToken cancellationToken)

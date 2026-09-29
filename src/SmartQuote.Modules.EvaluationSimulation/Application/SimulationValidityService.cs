@@ -35,6 +35,6 @@ public class SimulationValidityService(
 
         var dataset = inputAssembler.Assemble(requestSnapshot, quotationSnapshots);
 
-        return InputFingerprint.FromParts(dataset.CalculateFingerprint().Value, scenario.CalculateDefinitionFingerprint().Value);
+        return InputFingerprint.FromParts(dataset.CalculateFingerprint(simulationRun.ExchangeRate).Value, scenario.CalculateDefinitionFingerprint().Value);
     }
 }
