@@ -1,0 +1,31 @@
+name: cd-staging.yml
+
+on:
+  push:
+    branches: [ "develop" ]
+
+jobs:
+  validate:
+    name: Validate commit
+    uses: ./.github/workflows/ci.yml
+
+  deploy-staging:
+    name: Build & Push Docker to ACR (Staging)
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to ACR
+        uses: docker/login-action@v3
+        with:
+          registry: smartquoteacr.azurecr.io
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/SmartQuote.API/Dockerfile
+          push: true
+          tags: smartquoteacr.azurecr.io/smartquote-api:staging

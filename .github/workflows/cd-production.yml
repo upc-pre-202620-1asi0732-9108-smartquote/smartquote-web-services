@@ -1,22 +1,30 @@
-name: Build and push to ACR
+name: cd-production.yml
 
 on:
   push:
-    branches: [ develop ]
+    tags:
+      - 'v*.*.*'
+    branches:
+      - 'main'
 
 jobs:
-  build-and-push:
+  validate:
+    name: Validate commit
+    uses: ./.github/workflows/ci.yml
+
+  deploy-production:
+    name: Build &amp; Push Docker to ACR (Production)
+    needs: validate
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - uses: actions/checkout@v4
-
       - name: Log in to ACR
         uses: docker/login-action@v3
         with:
           registry: smartquoteacr.azurecr.io
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
-
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
