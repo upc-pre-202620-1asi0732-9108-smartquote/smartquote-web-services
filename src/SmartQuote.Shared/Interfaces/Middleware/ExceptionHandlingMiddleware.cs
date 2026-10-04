@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using Microsoft.AspNetCore.Http;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -93,7 +94,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         }
     }
 
-    private static Task WriteProblemAsync(
+    public static Task WriteProblemAsync(
         HttpContext context,
         HttpStatusCode status,
         string code,
@@ -102,7 +103,6 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
     {
         context.Response.StatusCode = (int)status;
         context.Response.ContentType = "application/problem+json";
-
         var problem = new ProblemDetails
         {
             Status = (int)status,
@@ -114,6 +114,6 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         problem.Extensions["code"] = code;
         problem.Extensions["traceId"] = context.TraceIdentifier;
 
-        return context.Response.WriteAsJsonAsync(problem);
+        return context.Response.WriteAsync(JsonSerializer.Serialize(problem, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
     }
 }

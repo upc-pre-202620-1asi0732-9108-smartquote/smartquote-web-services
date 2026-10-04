@@ -104,6 +104,23 @@ public sealed class RegistrationTests
     }
 
     [Fact]
+    public void PasswordPolicyAcceptsBothLengthLimitsAndRejectsValuesOutsideThem()
+    {
+        var minimum = "Aa123456789!";
+        var maximum = "Aa" + new string('7', 125) + "!";
+
+        Assert.Equal(RegistrationPasswordPolicy.MinimumLength, minimum.Length);
+        Assert.Equal(RegistrationPasswordPolicy.MaximumLength, maximum.Length);
+        RegistrationPasswordPolicy.Validate(minimum, "user@example.com");
+        RegistrationPasswordPolicy.Validate(maximum, "user@example.com");
+
+        Assert.Throws<ArgumentException>(() =>
+            RegistrationPasswordPolicy.Validate(minimum[..^1], "user@example.com"));
+        Assert.Throws<ArgumentException>(() =>
+            RegistrationPasswordPolicy.Validate(maximum + "7", "user@example.com"));
+    }
+
+    [Fact]
     public async Task RegisteredEmailIsUniqueIgnoringCaseAndSurroundingSpaces()
     {
         var fixture = new Fixture();

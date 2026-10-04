@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using System.Threading.RateLimiting;
+using System.Net;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -58,6 +59,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.MapInboundClaims = false;
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = context =>
+            {
+                context.HandleResponse();
+                context.Response.Headers.WWWAuthenticate = "Bearer";
+                return ExceptionHandlingMiddleware.WriteProblemAsync(
+                    context.HttpContext, HttpStatusCode.Unauthorized, "authentication_required",
+                    "Authentication required", "A valid bearer token is required.");
+            },
+            OnForbidden = context => ExceptionHandlingMiddleware.WriteProblemAsync(
+                context.HttpContext, HttpStatusCode.Forbidden, "forbidden",
+                "Forbidden", "The authenticated user is not permitted to access this resource.")
+        };
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,

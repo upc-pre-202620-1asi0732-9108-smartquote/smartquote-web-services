@@ -10,10 +10,11 @@ using SmartQuote.Modules.PurchaseOrdering.Application;
 namespace SmartQuote.Modules.PurchaseOrdering.Interfaces.REST;
 
 [ApiController]
-[Authorize(Roles = SmartQuoteRoles.PurchaseManager)]
+[Authorize]
 public class PurchaseOrdersController(PurchaseOrderApplicationService applicationService) : ControllerBase
 {
     [HttpPost("api/v1/simulations/{runId:guid}/quotations/{quotationId:guid}/purchase-orders")]
+    [Authorize(Roles = SmartQuoteRoles.PurchaseManager)]
     [ProducesResponseType<PurchaseOrderResource>(StatusCodes.Status201Created)]
     [ProducesResponseType<PurchaseOrderResource>(StatusCodes.Status200OK)]
     public async Task<ActionResult<PurchaseOrderResource>> ApproveAndGenerate(
@@ -38,6 +39,9 @@ public class PurchaseOrdersController(PurchaseOrderApplicationService applicatio
     [HttpGet("api/v1/purchase-orders/{purchaseOrderId:guid}")]
     [Authorize(Roles = SmartQuoteRoles.PurchasingStaff)]
     [ProducesResponseType<PurchaseOrderResource>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PurchaseOrderResource>> GetById(
         Guid purchaseOrderId,
         CancellationToken cancellationToken)
