@@ -50,6 +50,39 @@ public class PurchaseOrdersController(PurchaseOrderApplicationService applicatio
         return Ok(PurchaseOrderResourceFromViewAssembler.ToResource(view));
     }
 
+    [HttpPost("api/v1/purchase-orders/{purchaseOrderId:guid}/delivery")]
+    [Authorize(Roles = SmartQuoteRoles.PurchasingStaff)]
+    [ProducesResponseType<PurchaseOrderResource>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<PurchaseOrderResource>> MarkDelivered(
+        Guid purchaseOrderId,
+        CancellationToken cancellationToken)
+    {
+        var view = await applicationService.MarkDeliveredAsync(purchaseOrderId, cancellationToken);
+        return Ok(PurchaseOrderResourceFromViewAssembler.ToResource(view));
+    }
+
+    [HttpPost("api/v1/purchase-orders/{purchaseOrderId:guid}/delivery-evaluation")]
+    [Authorize(Roles = SmartQuoteRoles.PurchasingStaff)]
+    [ProducesResponseType<DeliveryEvaluationResource>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<DeliveryEvaluationResource>> EvaluateDelivery(
+        Guid purchaseOrderId,
+        [FromBody] CreateDeliveryEvaluationResource resource,
+        CancellationToken cancellationToken)
+    {
+        var view = await applicationService.EvaluateDeliveryAsync(
+            purchaseOrderId,
+            resource.OnTimeScore,
+            resource.QualityScore,
+            resource.Observations,
+            cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, DeliveryEvaluationResourceFromViewAssembler.ToResource(view));
+    }
+
     [HttpGet("api/v1/simulations/{runId:guid}/purchase-order")]
     [Authorize(Roles = SmartQuoteRoles.PurchasingStaff)]
     [ProducesResponseType<PurchaseOrderResource>(StatusCodes.Status200OK)]

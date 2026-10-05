@@ -22,6 +22,7 @@ public static class PurchaseOrderingModule
 
         services.AddScoped<IPurchaseOrderingUnitOfWork, PurchaseOrderingUnitOfWork>();
         services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
+        services.AddScoped<IDeliveryEvaluationRepository, DeliveryEvaluationRepository>();
         services.AddScoped<IOrderNumberGenerator, SequentialOrderNumberGenerator>();
         services.AddScoped<ApprovedDecisionMapper>();
         services.AddScoped<PurchaseOrderGenerator>();

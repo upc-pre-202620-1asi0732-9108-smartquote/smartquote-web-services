@@ -19,6 +19,7 @@ public class PurchaseOrder : AggregateRoot<PurchaseOrderId>
     public string Currency { get; private set; } = string.Empty;
     public DeliveryTerms DeliveryTerms { get; private set; } = null!;
     public DateTimeOffset CreatedAt { get; private set; }
+    public DateTimeOffset? DeliveredAt { get; private set; }
 
     public IReadOnlyList<PurchaseOrderLine> Lines => _lines.AsReadOnly();
 
@@ -43,19 +44,30 @@ public class PurchaseOrder : AggregateRoot<PurchaseOrderId>
         foreach (var line in decision.Lines)
             order.AddLine(PurchaseOrderLine.Create(lineNumber++, line));
 
-        order.Issue();
+        order.Issue(approval.ApprovedBy);
 
         return order;
     }
 
     public void AddLine(PurchaseOrderLine line) => _lines.Add(line);
 
-    public void Issue()
+    public void Issue(UserId approvedBy)
     {
         if (_lines.Count == 0)
             throw new DomainException("A purchase order must contain at least one line.");
 
-        AddDomainEvent(new PurchaseOrderIssued(Id, SourceDecision.SimulationRunId, SourceDecision.PurchaseRequestId, DateTimeOffset.UtcNow));
+        AddDomainEvent(new PurchaseOrderIssued(Id, SourceDecision.SimulationRunId, SourceDecision.PurchaseRequestId, approvedBy, DateTimeOffset.UtcNow));
+    }
+
+    public void MarkDelivered(UserId deliveredBy, DateTimeOffset deliveredAt)
+    {
+        if (Status != PurchaseOrderStatus.Issued)
+            throw new DomainException($"A purchase order in status '{Status}' cannot be marked as delivered.");
+
+        Status = PurchaseOrderStatus.Delivered;
+        DeliveredAt = deliveredAt;
+
+        AddDomainEvent(new PurchaseOrderDelivered(Id, SourceDecision.PurchaseRequestId, deliveredBy, deliveredAt));
     }
 
     public Money CalculateTotal() =>

@@ -24,6 +24,56 @@ namespace SmartQuote.Modules.PurchaseOrdering.Infrastructure.Persistence.EFC.Mig
 
             modelBuilder.HasSequence("order_number_seq", "purchase_ordering");
 
+            modelBuilder.Entity("SmartQuote.API.PurchaseOrdering.Domain.Model.Aggregates.DeliveryEvaluation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("EvaluatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("evaluated_at");
+
+                    b.Property<Guid>("EvaluatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("evaluated_by");
+
+                    b.Property<string>("Observations")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("observations");
+
+                    b.Property<int>("OnTimeScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("on_time_score");
+
+                    b.Property<Guid>("PurchaseOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("purchase_order_id");
+
+                    b.Property<int>("QualityScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("quality_score");
+
+                    b.Property<string>("SupplierTaxIdentifier")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("supplier_tax_identifier");
+
+                    b.HasKey("Id")
+                        .HasName("pk_delivery_evaluations");
+
+                    b.HasIndex("PurchaseOrderId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_delivery_evaluations_purchase_order_id");
+
+                    b.HasIndex("SupplierTaxIdentifier")
+                        .HasDatabaseName("ix_delivery_evaluations_supplier_tax_identifier");
+
+                    b.ToTable("delivery_evaluations", "purchase_ordering");
+                });
+
             modelBuilder.Entity("SmartQuote.API.PurchaseOrdering.Domain.Model.Aggregates.PurchaseOrder", b =>
                 {
                     b.Property<Guid>("Id")
@@ -38,6 +88,10 @@ namespace SmartQuote.Modules.PurchaseOrdering.Infrastructure.Persistence.EFC.Mig
                         .IsRequired()
                         .HasColumnType("char(3)")
                         .HasColumnName("currency");
+
+                    b.Property<DateTimeOffset?>("DeliveredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("delivered_at");
 
                     b.Property<string>("OrderNumber")
                         .IsRequired()

@@ -11,4 +11,5 @@ public record PurchaseRequestStatusChanged(
     RequestStatus PreviousStatus,
     RequestStatus NewStatus,
     string Reason,
+    UserId ChangedBy,
     DateTimeOffset OccurredAt) : IDomainEvent;

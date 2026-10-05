@@ -1,6 +1,7 @@
 using SmartQuote.API.PurchaseOrdering.Application.Ports;
 using SmartQuote.API.PurchaseOrdering.Application.Views;
 using SmartQuote.API.PurchaseOrdering.Domain.Model.Aggregates;
+using SmartQuote.API.PurchaseOrdering.Domain.Model.Enums;
 using SmartQuote.API.PurchaseOrdering.Domain.Model.Commands;
 using SmartQuote.API.PurchaseOrdering.Domain.Model.ValueObjects;
 using SmartQuote.API.PurchaseOrdering.Domain.Services;
@@ -20,6 +21,7 @@ public class PurchaseOrderApplicationService(
     IPurchaseOrderingUnitOfWork unitOfWork,
     IOrderRequestLifecycle requestLifecycle,
     IDomainEventDispatcher domainEventDispatcher,
+    IDeliveryEvaluationRepository deliveryEvaluations,
     ICurrentUser currentUser)
 {
     public async Task<PurchaseOrderGenerationResult> ApproveAndGenerateAsync(ApproveAndGenerateCommand command, CancellationToken cancellationToken = default)
@@ -88,6 +90,80 @@ public class PurchaseOrderApplicationService(
         var order = await repository.FindByRequestAsync(requestId.ToString(), cancellationToken);
         return order is null ? null : ToView(order);
     }
+
+    public async Task<PurchaseOrderView> MarkDeliveredAsync(Guid purchaseOrderId, CancellationToken cancellationToken = default)
+    {
+        var order = await repository.GetByIdAsync(new PurchaseOrderId(purchaseOrderId), cancellationToken)
+            ?? throw new NotFoundException($"Purchase order '{purchaseOrderId}' was not found.");
+
+        order.MarkDelivered(new UserId(currentUser.UserId), DateTimeOffset.UtcNow);
+        await unitOfWork.CompleteAsync(cancellationToken);
+
+        await domainEventDispatcher.DispatchAsync(order.DomainEvents, cancellationToken);
+        order.ClearDomainEvents();
+
+        return ToView(order);
+    }
+
+    public async Task<DeliveryEvaluationView> EvaluateDeliveryAsync(
+        Guid purchaseOrderId,
+        int onTimeScore,
+        int qualityScore,
+        string? observations,
+        CancellationToken cancellationToken = default)
+    {
+        var order = await repository.GetByIdAsync(new PurchaseOrderId(purchaseOrderId), cancellationToken)
+            ?? throw new NotFoundException($"Purchase order '{purchaseOrderId}' was not found.");
+
+        if (order.Status != PurchaseOrderStatus.Delivered)
+            throw new DomainException("Only delivered purchase orders can be evaluated.");
+
+        if (await deliveryEvaluations.ExistsForOrderAsync(order.Id, cancellationToken))
+            throw new ConflictException("This purchase order already has a delivery evaluation.");
+
+        var evaluation = DeliveryEvaluation.Create(
+            order.Id,
+            order.Supplier.TaxIdentifier,
+            onTimeScore,
+            qualityScore,
+            observations,
+            new UserId(currentUser.UserId),
+            DateTimeOffset.UtcNow);
+
+        await deliveryEvaluations.AddAsync(evaluation, cancellationToken);
+        await unitOfWork.CompleteAsync(cancellationToken);
+
+        return ToDeliveryEvaluationView(evaluation);
+    }
+
+    public async Task<SupplierPerformanceView> GetSupplierPerformanceAsync(string taxIdentifier, CancellationToken cancellationToken = default)
+    {
+        var evaluations = await deliveryEvaluations.ListBySupplierAsync(taxIdentifier, cancellationToken);
+        if (evaluations.Count == 0)
+            return new SupplierPerformanceView(taxIdentifier, 0, null, null, null, null, null);
+
+        var onTime = (decimal)evaluations.Average(evaluation => evaluation.OnTimeScore);
+        var quality = (decimal)evaluations.Average(evaluation => evaluation.QualityScore);
+
+        return new SupplierPerformanceView(
+            taxIdentifier,
+            evaluations.Count,
+            onTime,
+            quality,
+            (onTime + quality) / 2,
+            evaluations[0].EvaluatedAt,
+            evaluations[^1].EvaluatedAt);
+    }
+
+    private static DeliveryEvaluationView ToDeliveryEvaluationView(DeliveryEvaluation evaluation) => new(
+        evaluation.Id,
+        evaluation.PurchaseOrderId,
+        evaluation.SupplierTaxIdentifier,
+        evaluation.OnTimeScore,
+        evaluation.QualityScore,
+        evaluation.Observations,
+        evaluation.EvaluatedBy.Value,
+        evaluation.EvaluatedAt);
 
     private static PurchaseOrderView ToView(PurchaseOrder order) => new(
         order.Id,

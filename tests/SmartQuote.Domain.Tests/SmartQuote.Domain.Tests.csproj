@@ -15,5 +15,7 @@
     <ProjectReference Include="../../src/SmartQuote.Modules.QuotationIntake/SmartQuote.Modules.QuotationIntake.csproj" />
     <ProjectReference Include="../../src/SmartQuote.Modules.EvaluationSimulation/SmartQuote.Modules.EvaluationSimulation.csproj" />
     <ProjectReference Include="../../src/SmartQuote.Modules.SupplyRequests/SmartQuote.Modules.SupplyRequests.csproj" />
+    <ProjectReference Include="../../src/SmartQuote.Modules.PurchaseOrdering/SmartQuote.Modules.PurchaseOrdering.csproj" />
+    <ProjectReference Include="../../src/SmartQuote.Modules.Auditing/SmartQuote.Modules.Auditing.csproj" />
   </ItemGroup>
 </Project>

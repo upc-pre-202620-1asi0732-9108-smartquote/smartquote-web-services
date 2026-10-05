@@ -73,7 +73,7 @@ public class PurchaseRequest : AggregateRoot<PurchaseRequestId>
             requesterId,
             "Purchase request submitted."));
 
-        request.AddDomainEvent(new PurchaseRequestSubmitted(request.Id, request.CreatedAt));
+        request.AddDomainEvent(new PurchaseRequestSubmitted(request.Id, requesterId, request.CreatedAt));
 
         return request;
     }
@@ -113,7 +113,7 @@ public class PurchaseRequest : AggregateRoot<PurchaseRequestId>
         Version++;
         UpdatedAt = DateTimeOffset.UtcNow;
 
-        AddDomainEvent(new PurchaseRequestStatusChanged(Id, RequesterId, previousStatus, nextStatus, reason, UpdatedAt));
+        AddDomainEvent(new PurchaseRequestStatusChanged(Id, RequesterId, previousStatus, nextStatus, reason, changedBy, UpdatedAt));
     }
 
     private void AddItemCore(RequestedItem item)

@@ -8,9 +8,12 @@ public sealed class PurchaseOrderingDbContext(DbContextOptions<PurchaseOrderingD
 {
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
 
+    public DbSet<DeliveryEvaluation> DeliveryEvaluations => Set<DeliveryEvaluation>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.ApplyPurchaseOrderingConfiguration();
+        builder.ApplyDeliveryEvaluationConfiguration();
         builder.UseSnakeCaseNamingConvention();
     }
 }
