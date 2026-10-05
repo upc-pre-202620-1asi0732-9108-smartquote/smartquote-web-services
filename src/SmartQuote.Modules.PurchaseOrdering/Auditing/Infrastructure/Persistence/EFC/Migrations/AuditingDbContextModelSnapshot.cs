@@ -2,21 +2,18 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using SmartQuote.Modules.Auditing.Infrastructure.Persistence.EFC;
+using SmartQuote.API.PurchaseOrdering.Auditing.Infrastructure.Persistence.EFC;
 
 #nullable disable
 
-namespace SmartQuote.Modules.Auditing.Infrastructure.Persistence.EFC.Migrations
+namespace SmartQuote.API.PurchaseOrdering.Auditing.Infrastructure.Persistence.EFC.Migrations
 {
     [DbContext(typeof(AuditingDbContext))]
-    [Migration("20261004232424_InitialAuditingModule")]
-    partial class InitialAuditingModule
+    partial class AuditingDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -25,7 +22,7 @@ namespace SmartQuote.Modules.Auditing.Infrastructure.Persistence.EFC.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("SmartQuote.Modules.Auditing.Domain.Model.AuditEvent", b =>
+            modelBuilder.Entity("SmartQuote.API.PurchaseOrdering.Auditing.Domain.Model.AuditEvent", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")

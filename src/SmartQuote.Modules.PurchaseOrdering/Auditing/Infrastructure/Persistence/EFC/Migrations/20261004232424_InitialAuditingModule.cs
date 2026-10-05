@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace SmartQuote.Modules.Auditing.Infrastructure.Persistence.EFC.Migrations
+namespace SmartQuote.API.PurchaseOrdering.Auditing.Infrastructure.Persistence.EFC.Migrations
 {
     /// <inheritdoc />
     public partial class InitialAuditingModule : Migration

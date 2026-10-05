@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using SmartQuote.API.Shared.Infrastructure.Persistence;
-using SmartQuote.Modules.Auditing.Domain.Model;
+using SmartQuote.API.PurchaseOrdering.Auditing.Domain.Model;
 
-namespace SmartQuote.Modules.Auditing.Infrastructure.Persistence.EFC;
+namespace SmartQuote.API.PurchaseOrdering.Auditing.Infrastructure.Persistence.EFC;
 
 public sealed class AuditingDbContext(DbContextOptions<AuditingDbContext> options) : DbContext(options)
 {

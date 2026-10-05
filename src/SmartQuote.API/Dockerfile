@@ -8,7 +8,6 @@ COPY src/SmartQuote.Modules.QuotationIntake/SmartQuote.Modules.QuotationIntake.c
 COPY src/SmartQuote.Modules.EvaluationSimulation/SmartQuote.Modules.EvaluationSimulation.csproj src/SmartQuote.Modules.EvaluationSimulation/
 COPY src/SmartQuote.Modules.PurchaseOrdering/SmartQuote.Modules.PurchaseOrdering.csproj src/SmartQuote.Modules.PurchaseOrdering/
 COPY src/SmartQuote.Modules.IdentityAccess/SmartQuote.Modules.IdentityAccess.csproj src/SmartQuote.Modules.IdentityAccess/
-COPY src/SmartQuote.Modules.Auditing/SmartQuote.Modules.Auditing.csproj src/SmartQuote.Modules.Auditing/
 COPY src/SmartQuote.API/SmartQuote.API.csproj src/SmartQuote.API/
 RUN dotnet restore src/SmartQuote.API/SmartQuote.API.csproj
 

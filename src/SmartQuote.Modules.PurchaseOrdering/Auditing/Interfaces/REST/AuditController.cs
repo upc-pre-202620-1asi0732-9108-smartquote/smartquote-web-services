@@ -2,10 +2,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SmartQuote.API.Shared.Application.Security;
-using SmartQuote.Modules.Auditing.Application;
-using SmartQuote.Modules.Auditing.Interfaces.REST.Resources;
+using SmartQuote.API.PurchaseOrdering.Auditing.Application;
+using SmartQuote.API.PurchaseOrdering.Auditing.Interfaces.REST.Resources;
 
-namespace SmartQuote.Modules.Auditing.Interfaces.REST;
+namespace SmartQuote.API.PurchaseOrdering.Auditing.Interfaces.REST;
 
 [ApiController]
 [Authorize(Roles = SmartQuoteRoles.PurchaseManager)]

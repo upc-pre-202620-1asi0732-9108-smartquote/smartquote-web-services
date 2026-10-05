@@ -1,4 +1,4 @@
-namespace SmartQuote.Modules.Auditing.Interfaces.REST.Resources;
+namespace SmartQuote.API.PurchaseOrdering.Auditing.Interfaces.REST.Resources;
 
 public sealed record AuditEventResource(
     Guid AuditEventId,

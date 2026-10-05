@@ -4,11 +4,11 @@ using Microsoft.Extensions.DependencyInjection;
 using SmartQuote.API.PurchaseOrdering.Domain.Model.Events;
 using SmartQuote.API.Shared.Domain;
 using SmartQuote.API.SupplyRequests.Domain.Model.Events;
-using SmartQuote.Modules.Auditing.Application;
-using SmartQuote.Modules.Auditing.Application.EventHandlers;
-using SmartQuote.Modules.Auditing.Infrastructure.Persistence.EFC;
+using SmartQuote.API.PurchaseOrdering.Auditing.Application;
+using SmartQuote.API.PurchaseOrdering.Auditing.Application.EventHandlers;
+using SmartQuote.API.PurchaseOrdering.Auditing.Infrastructure.Persistence.EFC;
 
-namespace SmartQuote.Modules.Auditing;
+namespace SmartQuote.API.PurchaseOrdering.Auditing;
 
 public static class AuditingModule
 {

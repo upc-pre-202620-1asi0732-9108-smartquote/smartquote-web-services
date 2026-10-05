@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using SmartQuote.Modules.Auditing.Application.Views;
-using SmartQuote.Modules.Auditing.Domain.Model;
-using SmartQuote.Modules.Auditing.Infrastructure.Persistence.EFC;
+using SmartQuote.API.PurchaseOrdering.Auditing.Application.Views;
+using SmartQuote.API.PurchaseOrdering.Auditing.Domain.Model;
+using SmartQuote.API.PurchaseOrdering.Auditing.Infrastructure.Persistence.EFC;
 
-namespace SmartQuote.Modules.Auditing.Application;
+namespace SmartQuote.API.PurchaseOrdering.Auditing.Application;
 
 public sealed class AuditTrailService(AuditingDbContext context)
 {

@@ -1,6 +1,6 @@
 using SmartQuote.API.Shared.Domain;
 
-namespace SmartQuote.Modules.Auditing.Domain.Model;
+namespace SmartQuote.API.PurchaseOrdering.Auditing.Domain.Model;
 
 public sealed class AuditEvent
 {

@@ -1,8 +1,8 @@
 using SmartQuote.API.Shared.Domain;
 using SmartQuote.API.SupplyRequests.Domain.Model.Events;
-using SmartQuote.Modules.Auditing.Domain.Model;
+using SmartQuote.API.PurchaseOrdering.Auditing.Domain.Model;
 
-namespace SmartQuote.Modules.Auditing.Application.EventHandlers;
+namespace SmartQuote.API.PurchaseOrdering.Auditing.Application.EventHandlers;
 
 public sealed class AuditRequestSubmittedHandler(AuditTrailService trail)
     : IDomainEventHandler<PurchaseRequestSubmitted>
