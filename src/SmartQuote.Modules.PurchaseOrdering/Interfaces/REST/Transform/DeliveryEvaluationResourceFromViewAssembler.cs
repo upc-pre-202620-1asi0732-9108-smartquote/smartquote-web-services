@@ -11,5 +11,6 @@ public static class DeliveryEvaluationResourceFromViewAssembler
 
     public static SupplierPerformanceResource ToResource(SupplierPerformanceView view) =>
         new(view.SupplierTaxIdentifier, view.EvaluationCount, view.AverageOnTimeScore, view.AverageQualityScore,
-            view.OverallScore, view.FirstEvaluatedAt, view.LastEvaluatedAt);
+            view.OverallScore, view.FirstEvaluatedAt, view.LastEvaluatedAt,
+            view.Evaluations.Select(ToResource).ToList());
 }

@@ -54,4 +54,11 @@ public sealed class DeliveryEvaluationTests
 
         Assert.Null(evaluation.Observations);
     }
+
+    [Fact]
+    public void CreateAcceptsExactly500Characters()
+    {
+        var observations = new string('x', 500);
+        Assert.Equal(observations, Create(observations: observations).Observations);
+    }
 }

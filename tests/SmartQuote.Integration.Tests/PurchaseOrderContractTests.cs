@@ -117,6 +117,64 @@ public sealed class PurchaseOrderContractTests(PurchaseOrderContractFactory fact
         return client;
     }
 
+    [Theory]
+    [InlineData("PurchaseManager")]
+    [InlineData("PurchaseAnalyst")]
+    public async Task SupplierHistoryMatchesTheSummaryAndRetainsTraceability(string role)
+    {
+        using var client = Client(role);
+        using var response = await client.GetAsync("/api/v1/suppliers/20123456789/performance");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var summary = json.RootElement;
+        var history = summary.GetProperty("evaluations").EnumerateArray().ToArray();
+        Assert.Equal(2, summary.GetProperty("evaluationCount").GetInt32());
+        Assert.Equal(2, history.Length);
+        Assert.Equal(3m, summary.GetProperty("averageOnTimeScore").GetDecimal());
+        Assert.Equal(4m, summary.GetProperty("averageQualityScore").GetDecimal());
+        Assert.Equal(3.5m, summary.GetProperty("overallScore").GetDecimal());
+        Assert.Equal(summary.GetProperty("lastEvaluatedAt").GetDateTimeOffset(), history[0].GetProperty("evaluatedAt").GetDateTimeOffset());
+        Assert.Equal(summary.GetProperty("firstEvaluatedAt").GetDateTimeOffset(), history[1].GetProperty("evaluatedAt").GetDateTimeOffset());
+        Assert.Equal("Entrega completa", history[0].GetProperty("observations").GetString());
+        foreach (var item in history)
+        {
+            Assert.NotEqual(Guid.Empty, item.GetProperty("deliveryEvaluationId").GetGuid());
+            Assert.NotEqual(Guid.Empty, item.GetProperty("purchaseOrderId").GetGuid());
+            Assert.NotEqual(Guid.Empty, item.GetProperty("evaluatedBy").GetGuid());
+            Assert.Equal("20123456789", item.GetProperty("supplierTaxIdentifier").GetString());
+        }
+    }
+
+    [Fact]
+    public async Task SupplierWithoutEvaluationsHasEmptyHistoryAndNoInventedScore()
+    {
+        using var client = Client("PurchaseAnalyst");
+        using var response = await client.GetAsync("/api/v1/suppliers/20999999999/performance");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(0, json.RootElement.GetProperty("evaluationCount").GetInt32());
+        Assert.Empty(json.RootElement.GetProperty("evaluations").EnumerateArray());
+        foreach (var property in new[] { "overallScore", "averageOnTimeScore", "averageQualityScore", "firstEvaluatedAt", "lastEvaluatedAt" })
+            Assert.Equal(JsonValueKind.Null, json.RootElement.GetProperty(property).ValueKind);
+    }
+
+    [Fact]
+    public async Task ProductionCannotReadSupplierEvaluations()
+    {
+        using var client = Client("ProductionSpecialist");
+        using var response = await client.GetAsync("/api/v1/suppliers/20123456789/performance");
+        await AssertProblem(response, HttpStatusCode.Forbidden, "forbidden");
+    }
+
+    [Fact]
+    public async Task UndeliveredOrderCannotBeEvaluated()
+    {
+        using var client = Client("PurchaseAnalyst");
+        using var body = new StringContent("{\"onTimeScore\":5,\"qualityScore\":4}", Encoding.UTF8, "application/json");
+        using var response = await client.PostAsync($"/api/v1/purchase-orders/{_factory.Order.Id.Value}/delivery-evaluation", body);
+        await AssertProblem(response, HttpStatusCode.UnprocessableEntity, "domain_rule_violation");
+    }
+
     private static string OrderPath(Guid id) => $"/api/v1/purchase-orders/{id}";
 
     private static async Task AssertProblem(HttpResponseMessage response, HttpStatusCode status, string code)
@@ -169,6 +227,8 @@ public sealed class PurchaseOrderContractFactory : WebApplicationFactory<Program
         {
             services.RemoveAll<IPurchaseOrderRepository>();
             services.AddSingleton<IPurchaseOrderRepository>(_repository);
+            services.RemoveAll<IDeliveryEvaluationRepository>();
+            services.AddSingleton<IDeliveryEvaluationRepository>(new ContractEvaluationRepository());
         });
     }
 
@@ -188,6 +248,25 @@ public sealed class PurchaseOrderContractFactory : WebApplicationFactory<Program
         var signature = Encode(HMACSHA256.HashData(Encoding.UTF8.GetBytes(SigningKey),
             Encoding.UTF8.GetBytes(message)));
         return $"{message}.{signature}";
+    }
+
+    private sealed class ContractEvaluationRepository : IDeliveryEvaluationRepository
+    {
+        private readonly IReadOnlyList<DeliveryEvaluation> _evaluations =
+        [
+            DeliveryEvaluation.Create(new PurchaseOrderId(Guid.NewGuid()), "20123456789", 4, 5,
+                "Entrega completa", new UserId(Guid.NewGuid()), new DateTimeOffset(2026, 10, 2, 12, 0, 0, TimeSpan.Zero)),
+            DeliveryEvaluation.Create(new PurchaseOrderId(Guid.NewGuid()), "20123456789", 2, 3,
+                null, new UserId(Guid.NewGuid()), new DateTimeOffset(2026, 10, 1, 12, 0, 0, TimeSpan.Zero)),
+            DeliveryEvaluation.Create(new PurchaseOrderId(Guid.NewGuid()), "20698765432", 1, 1,
+                "Otro proveedor", new UserId(Guid.NewGuid()), new DateTimeOffset(2026, 10, 3, 12, 0, 0, TimeSpan.Zero))
+        ];
+
+        public Task<IReadOnlyList<DeliveryEvaluation>> ListBySupplierAsync(string taxIdentifier, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<DeliveryEvaluation>>(_evaluations.Where(item => item.SupplierTaxIdentifier == taxIdentifier).ToList());
+        public Task<bool> ExistsForOrderAsync(PurchaseOrderId id, CancellationToken cancellationToken = default) =>
+            Task.FromResult(_evaluations.Any(item => item.PurchaseOrderId == id));
+        public Task AddAsync(DeliveryEvaluation evaluation, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class ContractOrderRepository : IPurchaseOrderRepository

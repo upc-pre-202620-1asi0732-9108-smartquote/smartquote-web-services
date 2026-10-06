@@ -7,4 +7,5 @@ public record SupplierPerformanceView(
     decimal? AverageQualityScore,
     decimal? OverallScore,
     DateTimeOffset? FirstEvaluatedAt,
-    DateTimeOffset? LastEvaluatedAt);
+    DateTimeOffset? LastEvaluatedAt,
+    IReadOnlyList<DeliveryEvaluationView> Evaluations);

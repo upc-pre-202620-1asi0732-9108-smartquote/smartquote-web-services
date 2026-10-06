@@ -140,7 +140,7 @@ public class PurchaseOrderApplicationService(
     {
         var evaluations = await deliveryEvaluations.ListBySupplierAsync(taxIdentifier, cancellationToken);
         if (evaluations.Count == 0)
-            return new SupplierPerformanceView(taxIdentifier, 0, null, null, null, null, null);
+            return new SupplierPerformanceView(taxIdentifier, 0, null, null, null, null, null, []);
 
         var onTime = (decimal)evaluations.Average(evaluation => evaluation.OnTimeScore);
         var quality = (decimal)evaluations.Average(evaluation => evaluation.QualityScore);
@@ -151,8 +151,11 @@ public class PurchaseOrderApplicationService(
             onTime,
             quality,
             (onTime + quality) / 2,
-            evaluations[0].EvaluatedAt,
-            evaluations[^1].EvaluatedAt);
+            evaluations.Min(evaluation => evaluation.EvaluatedAt),
+            evaluations.Max(evaluation => evaluation.EvaluatedAt),
+            evaluations.OrderByDescending(evaluation => evaluation.EvaluatedAt)
+                .ThenBy(evaluation => evaluation.Id.Value)
+                .Select(ToDeliveryEvaluationView).ToList());
     }
 
     private static DeliveryEvaluationView ToDeliveryEvaluationView(DeliveryEvaluation evaluation) => new(

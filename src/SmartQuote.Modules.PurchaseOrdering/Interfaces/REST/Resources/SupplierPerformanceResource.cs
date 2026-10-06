@@ -7,4 +7,5 @@ public sealed record SupplierPerformanceResource(
     decimal? AverageQualityScore,
     decimal? OverallScore,
     DateTimeOffset? FirstEvaluatedAt,
-    DateTimeOffset? LastEvaluatedAt);
+    DateTimeOffset? LastEvaluatedAt,
+    IReadOnlyList<DeliveryEvaluationResource> Evaluations);

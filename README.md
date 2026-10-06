@@ -101,5 +101,7 @@ Con Docker Compose, defina `SunatExchangeRate__Token` en el archivo `.env`. No c
 
 ## Documentación de diagramas
 
+US15: `GET /api/v1/suppliers/{taxIdentifier}/performance` devuelve los promedios, cantidad y período junto con `evaluations`, el historial individual ordenado desde la evaluación más reciente. Cada registro conserva orden, autor, fecha, calificaciones y observaciones. El analista o jefe registra la evaluación únicamente tras la entrega, con notas de 1 a 5 y hasta 500 caracteres de observaciones; una segunda evaluación de la misma orden devuelve 409. Este ajuste no requiere migraciones.
+
 - Diagramas de clases PlantUML: `docs/1-supply-requests.puml`, `docs/2-quotation-intake.puml`, `docs/3-evaluation-simulation.puml`, `docs/4-purchase-ordering.puml` y `docs/5-identity-access.puml`.
 - Modelo relacional: `docs/database-schema-documentation.md`.
