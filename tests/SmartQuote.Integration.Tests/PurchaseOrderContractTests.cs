@@ -117,6 +117,25 @@ public sealed class PurchaseOrderContractTests(PurchaseOrderContractFactory fact
         return client;
     }
 
+    [Fact]
+    public async Task LoginRateLimitReportsAWaitOfAtMost15Seconds()
+    {
+        using var client = _factory.CreateClient();
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            using var invalidBody = new StringContent("{}", Encoding.UTF8, "application/json");
+            using var invalidResponse = await client.PostAsync("/api/v1/iam/auth/login", invalidBody);
+            Assert.Equal(HttpStatusCode.BadRequest, invalidResponse.StatusCode);
+        }
+        using var body = new StringContent("{}", Encoding.UTF8, "application/json");
+        using var response = await client.PostAsync("/api/v1/iam/auth/login", body);
+        Assert.Equal(HttpStatusCode.TooManyRequests, response.StatusCode);
+        Assert.InRange(int.Parse(response.Headers.GetValues("Retry-After").Single()), 1, 15);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("rate_limit_exceeded", json.RootElement.GetProperty("code").GetString());
+        Assert.Contains("segundos", json.RootElement.GetProperty("detail").GetString());
+    }
+
     [Theory]
     [InlineData("PurchaseManager")]
     [InlineData("PurchaseAnalyst")]

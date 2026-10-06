@@ -93,13 +93,30 @@ builder.Services.AddAuthorization();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        var retrySeconds = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter)
+            ? (int)Math.Ceiling(retryAfter.TotalSeconds)
+            : (int?)null;
+        if (retrySeconds.HasValue)
+            context.HttpContext.Response.Headers["Retry-After"] = retrySeconds.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        await context.HttpContext.Response.WriteAsJsonAsync(new
+        {
+            title = "Too many requests",
+            status = StatusCodes.Status429TooManyRequests,
+            detail = retrySeconds.HasValue
+                ? $"Se alcanzó el límite de solicitudes. Espera {retrySeconds.Value} segundos antes de reintentar."
+                : "Se alcanzó el límite de solicitudes. Espera antes de reintentar.",
+            code = "rate_limit_exceeded"
+        }, cancellationToken);
+    };
     options.AddPolicy("authentication-login", context =>
         RateLimitPartition.GetFixedWindowLimiter(
             context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 10,
-                Window = TimeSpan.FromMinutes(15),
+                Window = TimeSpan.FromSeconds(15),
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));

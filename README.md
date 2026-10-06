@@ -77,6 +77,8 @@ La contraseña de registro debe tener entre 12 y 128 caracteres, al menos una le
 
 ## OpenAI y secretos
 
+El inicio de sesión admite 10 solicitudes por IP cada 15 segundos para facilitar las pruebas y demostraciones. Al superar el límite devuelve HTTP 429 con `Retry-After` y el tiempo de espera en el mensaje, que la aplicación móvil muestra directamente. El registro conserva 5 intentos por IP cada 15 minutos. Antes de una puesta en producción comercial, revisar estos límites y la identificación de IP detrás del proxy.
+
 La configuración predeterminada usa `AI:Provider=Stub`, por lo que permite probar cotizaciones sin clave ni consumo externo. Para el agente real desde Rider:
 
 ```powershell
