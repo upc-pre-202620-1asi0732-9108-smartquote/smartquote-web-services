@@ -83,6 +83,15 @@ public sealed class UserAccount : AggregateRoot<UserId>
         UpdatedAt = approvedAt;
     }
 
+    public void RejectRegistration(DateTimeOffset rejectedAt)
+    {
+        if (Status != AccountStatus.Pending)
+            throw new ConflictException("Only a pending account can be rejected.");
+
+        Status = AccountStatus.Rejected;
+        UpdatedAt = rejectedAt;
+    }
+
     public void Disable(DateTimeOffset changedAt)
     {
         Status = AccountStatus.Disabled;

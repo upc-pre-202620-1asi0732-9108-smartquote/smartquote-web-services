@@ -62,6 +62,32 @@ public sealed class RegistrationTests
         Assert.Equal("PurchaseAnalyst", Assert.Single(session.User.Roles));
     }
 
+    [Fact]
+    public async Task RejectedRegistrationStaysOutOfPendingListCannotLoginAndCannotBeApproved()
+    {
+        var fixture = new Fixture();
+        await fixture.RegisterInitialManager();
+        var registered = await fixture.Service.RegisterAsync(new RegisterAccountCommand(
+            "rejected.user@example.com", "Rejected User", ValidPassword, "ProductionSpecialist"));
+
+        await fixture.Service.RejectRegistrationAsync(registered.UserId);
+
+        Assert.Empty(await fixture.Service.GetPendingRegistrationsAsync());
+        await Assert.ThrowsAsync<AuthenticationException>(() => fixture.Service.LoginAsync(
+            new LoginCommand("rejected.user@example.com", ValidPassword)));
+        await Assert.ThrowsAsync<ConflictException>(() => fixture.Service.ApproveRegistrationAsync(
+            registered.UserId, "PurchaseAnalyst"));
+    }
+
+    [Fact]
+    public async Task ActiveAccountsCannotBeRejected()
+    {
+        var fixture = new Fixture();
+        var initial = await fixture.RegisterInitialManager();
+
+        await Assert.ThrowsAsync<ConflictException>(() => fixture.Service.RejectRegistrationAsync(initial.UserId));
+    }
+
     [Theory]
     [InlineData("Administrator")]
     [InlineData("2")]

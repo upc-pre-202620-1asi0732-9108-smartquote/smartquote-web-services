@@ -70,6 +70,21 @@ public sealed class AuthController(AuthenticationService authenticationService) 
         return Ok(ToResource(user));
     }
 
+    [Authorize(Roles = SmartQuoteRoles.PurchaseManager)]
+    [HttpPost("api/v1/iam/registration-requests/{userId:guid}/reject")]
+    [ProducesResponseType<CurrentUserResource>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<CurrentUserResource>> RejectRegistration(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var user = await authenticationService.RejectRegistrationAsync(userId, cancellationToken);
+        return Ok(ToResource(user));
+    }
+
     [AllowAnonymous]
     [EnableRateLimiting("authentication-login")]
     [HttpPost("api/v1/iam/auth/login")]

@@ -88,6 +88,17 @@ public sealed class AuthenticationService(
         return ToView(account);
     }
 
+    public async Task<CurrentUserView> RejectRegistrationAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var account = await userAccountRepository.GetByIdAsync(new UserId(userId), cancellationToken)
+            ?? throw new KeyNotFoundException("Registration request was not found.");
+        account.RejectRegistration(DateTimeOffset.UtcNow);
+        await unitOfWork.CompleteAsync(cancellationToken);
+        return ToView(account);
+    }
+
     public async Task<AuthenticatedSession> LoginAsync(
         LoginCommand command,
         CancellationToken cancellationToken = default)
