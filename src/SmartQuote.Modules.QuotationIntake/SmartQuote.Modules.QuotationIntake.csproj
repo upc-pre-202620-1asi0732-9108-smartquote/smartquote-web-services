@@ -18,4 +18,8 @@
     <ProjectReference Include="../SmartQuote.Modules.SupplyRequests/SmartQuote.Modules.SupplyRequests.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Infrastructure\Persistence\EFC\Migrations\" />
+  </ItemGroup>
+
 </Project>

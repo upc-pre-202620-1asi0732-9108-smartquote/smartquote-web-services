@@ -1,0 +1,34 @@
+name: cd-production.yml
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+    branches:
+      - 'main'
+
+jobs:
+  validate:
+    name: Validate commit
+    uses: ./.github/workflows/ci.yml
+
+  deploy-production:
+    name: Build &amp; Push Docker to ACR (Production)
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to ACR
+        uses: docker/login-action@v3
+        with:
+          registry: smartquoteacr.azurecr.io
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/SmartQuote.API/Dockerfile
+          push: true
+          tags: smartquoteacr.azurecr.io/smartquote-api:latest

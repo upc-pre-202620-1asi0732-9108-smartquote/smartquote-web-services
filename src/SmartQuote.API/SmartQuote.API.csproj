@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>96222fc8-076f-46c0-9b2d-521ee1f910fb</UserSecretsId>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,6 +24,7 @@
     <ProjectReference Include="../SmartQuote.Modules.QuotationIntake/SmartQuote.Modules.QuotationIntake.csproj" />
     <ProjectReference Include="../SmartQuote.Modules.EvaluationSimulation/SmartQuote.Modules.EvaluationSimulation.csproj" />
     <ProjectReference Include="../SmartQuote.Modules.PurchaseOrdering/SmartQuote.Modules.PurchaseOrdering.csproj" />
+    <ProjectReference Include="../SmartQuote.Modules.IdentityAccess/SmartQuote.Modules.IdentityAccess.csproj" />
   </ItemGroup>
 
 </Project>

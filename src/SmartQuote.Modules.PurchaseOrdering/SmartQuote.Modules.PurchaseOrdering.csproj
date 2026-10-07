@@ -14,6 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="../SmartQuote.Shared/SmartQuote.Shared.csproj" />
     <ProjectReference Include="../SmartQuote.Modules.EvaluationSimulation/SmartQuote.Modules.EvaluationSimulation.csproj" />
+    <ProjectReference Include="../SmartQuote.Modules.SupplyRequests/SmartQuote.Modules.SupplyRequests.csproj" />
   </ItemGroup>
 
 </Project>
