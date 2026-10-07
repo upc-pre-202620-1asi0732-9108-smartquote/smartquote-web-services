@@ -5,11 +5,11 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using SmartQuote.API.PurchaseOrdering.Auditing.Infrastructure.Persistence.EFC;
+using SmartQuote.API.PurchaseOrdering.Infrastructure.Persistence.EFC.Auditing;
 
 #nullable disable
 
-namespace SmartQuote.API.PurchaseOrdering.Auditing.Infrastructure.Persistence.EFC.Migrations
+namespace SmartQuote.API.PurchaseOrdering.Infrastructure.Persistence.EFC.Auditing.Migrations
 {
     [DbContext(typeof(AuditingDbContext))]
     [Migration("20261004232424_InitialAuditingModule")]
@@ -25,7 +25,7 @@ namespace SmartQuote.API.PurchaseOrdering.Auditing.Infrastructure.Persistence.EF
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("SmartQuote.API.PurchaseOrdering.Auditing.Domain.Model.AuditEvent", b =>
+            modelBuilder.Entity("SmartQuote.API.PurchaseOrdering.Domain.Model.Entities.AuditEvent", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")

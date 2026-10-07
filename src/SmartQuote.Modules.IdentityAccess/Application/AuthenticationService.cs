@@ -153,6 +153,20 @@ public sealed class AuthenticationService(
         await unitOfWork.CompleteAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyDictionary<Guid, string>> GetDisplayNamesAsync(
+        IEnumerable<Guid> userIds,
+        CancellationToken cancellationToken = default)
+    {
+        var names = new Dictionary<Guid, string>();
+        foreach (var userId in userIds.Distinct())
+        {
+            var account = await userAccountRepository.GetByIdAsync(new UserId(userId), cancellationToken);
+            if (account is not null)
+                names[userId] = account.DisplayName;
+        }
+        return names;
+    }
+
     public async Task<CurrentUserView> GetCurrentUserAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var account = await userAccountRepository.GetByIdAsync(new UserId(userId), cancellationToken)

@@ -1,4 +1,4 @@
-namespace SmartQuote.API.PurchaseOrdering.Auditing.Interfaces.REST.Resources;
+namespace SmartQuote.API.PurchaseOrdering.Interfaces.REST.Resources;
 
 public sealed record AuditEventResource(
     Guid AuditEventId,
@@ -7,4 +7,5 @@ public sealed record AuditEventResource(
     string Action,
     Guid ActorId,
     string? Reason,
-    DateTimeOffset OccurredAt);
+    DateTimeOffset OccurredAt,
+    string? ActorName);

@@ -80,6 +80,19 @@ public sealed class RegistrationTests
     }
 
     [Fact]
+    public async Task DisplayNamesAreResolvedForAuditActorsAndUnknownIdsAreOmitted()
+    {
+        var fixture = new Fixture();
+        var initial = await fixture.RegisterInitialManager();
+        var unknown = Guid.NewGuid();
+
+        var names = await fixture.Service.GetDisplayNamesAsync(new[] { initial.UserId, unknown });
+
+        Assert.Equal("Initial Manager", names[initial.UserId]);
+        Assert.False(names.ContainsKey(unknown));
+    }
+
+    [Fact]
     public async Task ActiveAccountsCannotBeRejected()
     {
         var fixture = new Fixture();

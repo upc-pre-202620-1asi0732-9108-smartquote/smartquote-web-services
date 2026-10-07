@@ -1,4 +1,4 @@
-namespace SmartQuote.API.PurchaseOrdering.Auditing.Application.Views;
+namespace SmartQuote.API.PurchaseOrdering.Application.Views;
 
 public sealed record AuditEventView(
     Guid AuditEventId,

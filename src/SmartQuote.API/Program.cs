@@ -16,8 +16,8 @@ using SmartQuote.API.Shared.Domain;
 using SmartQuote.API.Shared.Infrastructure;
 using SmartQuote.API.SupplyRequests;
 using SmartQuote.API.SupplyRequests.Infrastructure.Persistence.EFC.Configuration;
-using SmartQuote.API.PurchaseOrdering.Auditing;
-using SmartQuote.API.PurchaseOrdering.Auditing.Infrastructure.Persistence.EFC;
+using SmartQuote.API.PurchaseOrdering.Application.Ports;
+using SmartQuote.API.PurchaseOrdering.Infrastructure.Persistence.EFC.Auditing;
 using SmartQuote.Modules.EvaluationSimulation;
 using SmartQuote.Modules.EvaluationSimulation.Infrastructure.Persistence.EFC.Configuration;
 using SmartQuote.Modules.IdentityAccess;
@@ -163,9 +163,9 @@ builder.Services.AddSupplyRequestsModule(builder.Configuration, connectionString
 builder.Services.AddQuotationIntakeModule(builder.Configuration, connectionString);
 builder.Services.AddEvaluationSimulationModule(builder.Configuration, connectionString);
 builder.Services.AddPurchaseOrderingModule(builder.Configuration, connectionString);
-builder.Services.AddAuditingModule(builder.Configuration, connectionString);
 builder.Services.AddScoped<IOrderRequestLifecycle, OrderRequestLifecycleAdapter>();
 builder.Services.AddIdentityAccessModule(builder.Configuration, connectionString);
+builder.Services.AddScoped<IActorNameDirectory, SmartQuote.API.Integration.IdentityActorNameDirectory>();
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<SupplyRequestsDbContext>("supply-requests-database")

@@ -1,5 +1,5 @@
 using SmartQuote.API.Shared.Domain;
-using SmartQuote.API.PurchaseOrdering.Auditing.Domain.Model;
+using SmartQuote.API.PurchaseOrdering.Domain.Model.Entities;
 using Xunit;
 
 namespace SmartQuote.Domain.Tests;
