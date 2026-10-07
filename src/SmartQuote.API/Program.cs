@@ -16,7 +16,6 @@ using SmartQuote.API.Shared.Domain;
 using SmartQuote.API.Shared.Infrastructure;
 using SmartQuote.API.SupplyRequests;
 using SmartQuote.API.SupplyRequests.Infrastructure.Persistence.EFC.Configuration;
-using SmartQuote.API.PurchaseOrdering.Application.Ports;
 using SmartQuote.API.PurchaseOrdering.Infrastructure.Persistence.EFC.Auditing;
 using SmartQuote.Modules.EvaluationSimulation;
 using SmartQuote.Modules.EvaluationSimulation.Infrastructure.Persistence.EFC.Configuration;

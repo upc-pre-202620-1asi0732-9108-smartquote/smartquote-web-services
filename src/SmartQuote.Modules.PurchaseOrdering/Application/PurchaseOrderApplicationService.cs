@@ -9,6 +9,7 @@ using SmartQuote.API.Shared.Application.Security;
 using SmartQuote.API.Shared.Domain;
 using SmartQuote.API.Shared.Domain.Model.ValueObjects;
 using SmartQuote.Modules.EvaluationSimulation.Application.OutboundServices;
+using System.Text.RegularExpressions;
 
 namespace SmartQuote.Modules.PurchaseOrdering.Application;
 
@@ -138,6 +139,9 @@ public class PurchaseOrderApplicationService(
 
     public async Task<SupplierPerformanceView> GetSupplierPerformanceAsync(string taxIdentifier, CancellationToken cancellationToken = default)
     {
+        if (taxIdentifier is null || !Regex.IsMatch(taxIdentifier, "^[0-9]{11}$"))
+            throw new ArgumentException("The supplier tax identifier (RUC) must have exactly 11 digits.", nameof(taxIdentifier));
+
         var evaluations = await deliveryEvaluations.ListBySupplierAsync(taxIdentifier, cancellationToken);
         if (evaluations.Count == 0)
             return new SupplierPerformanceView(taxIdentifier, 0, null, null, null, null, null, []);
