@@ -12,7 +12,9 @@ namespace SmartQuote.Domain.Tests;
 
 public class FastFlowTests
 {
+    // US05/E2: Supplier Can Be Extracted And Corrected Before Verification; comprobación aislada.
     [Fact]
+    [Trait("Story", "US05"), Trait("Scenario", "E2"), Trait("Category", "Unit")]
     public void SupplierCanBeExtractedAndCorrectedBeforeVerification()
     {
         var quote = PoultryQuote.Create(
@@ -47,7 +49,9 @@ public class FastFlowTests
             extracted.Source.TextReference == "Proteína 20,5 %");
     }
 
+    // US07/E2: Technical Comparison Accepts Decimal Comma And Rejects Incompatible Units; comprobación aislada.
     [Fact]
+    [Trait("Story", "US07"), Trait("Scenario", "E2"), Trait("Category", "Unit")]
     public void TechnicalComparisonAcceptsDecimalCommaAndRejectsIncompatibleUnits()
     {
         var criterion = EvaluationCriterion.Create("Proteína mínima", Guid.NewGuid().ToString(),
@@ -69,7 +73,9 @@ public class FastFlowTests
         Assert.False(criterion.Evaluate(mismatched).Passed);
     }
 
+    // US08/E2: Status Only Request Version Change Does Not Invalidate Decision Input; comprobación aislada.
     [Fact]
+    [Trait("Story", "US08"), Trait("Scenario", "E2"), Trait("Category", "Unit")]
     public void StatusOnlyRequestVersionChangeDoesNotInvalidateDecisionInput()
     {
         var id = Guid.NewGuid().ToString();
@@ -79,7 +85,9 @@ public class FastFlowTests
             new EvaluationDataset(afterStatusChange, []).CalculateFingerprint());
     }
 
+    // US07/E1: Simulation Matches Documented Crude Protein To Minimum Protein Requirement; comprobación aislada.
     [Fact]
+    [Trait("Story", "US07"), Trait("Scenario", "E1"), Trait("Category", "Unit")]
     public void SimulationMatchesDocumentedCrudeProteinToMinimumProteinRequirement()
     {
         var requestId = Guid.NewGuid().ToString();
@@ -111,7 +119,9 @@ public class FastFlowTests
         Assert.NotNull(run.Recommendation);
     }
 
+    // TS03/E1: Simulation Compares Pen And Usd Using Recorded Official Rate; comprobación aislada.
     [Fact]
+    [Trait("Story", "TS03"), Trait("Scenario", "E1"), Trait("Category", "Unit")]
     public void SimulationComparesPenAndUsdUsingRecordedOfficialRate()
     {
         var requestId = Guid.NewGuid().ToString();

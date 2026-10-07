@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,7 +29,9 @@ public sealed class ApiPersistenceTests : IClassFixture<SmartQuoteFactory>
 
     public ApiPersistenceTests(SmartQuoteFactory factory) => _factory = factory;
 
+    // US02/E1: Production Request Is Persisted In Postgre Sql; comprobación API y PostgreSQL real.
     [Fact]
+    [Trait("Story", "US02"), Trait("Scenario", "E1"), Trait("Category", "Integration")]
     public async Task ProductionRequestIsPersistedInPostgreSql()
     {
         var production = Client("ProductionSpecialist");
@@ -49,7 +52,9 @@ public sealed class ApiPersistenceTests : IClassFixture<SmartQuoteFactory>
         Assert.Equal("Submitted", await command.ExecuteScalarAsync());
     }
 
+    // US10/E2: Mixed Batch Persists Valid Pdf And Returns Error For Unsupported File; comprobación API y PostgreSQL real.
     [Fact]
+    [Trait("Story", "US10"), Trait("Scenario", "E2"), Trait("Category", "Integration")]
     public async Task MixedBatchPersistsValidPdfAndReturnsErrorForUnsupportedFile()
     {
         var requestId = await RequestAcceptingQuotationsAsync();
@@ -75,7 +80,9 @@ public sealed class ApiPersistenceTests : IClassFixture<SmartQuoteFactory>
         Assert.Equal(valid.GetProperty("quotationId").GetGuid(), await command.ExecuteScalarAsync());
     }
 
+    // US04/E3: Duplicate Pdfs In Batch Do Not Create Duplicate Rows; comprobación API y PostgreSQL real.
     [Fact]
+    [Trait("Story", "US04"), Trait("Scenario", "E3"), Trait("Category", "Integration")]
     public async Task DuplicatePdfsInBatchDoNotCreateDuplicateRows()
     {
         var requestId = await RequestAcceptingQuotationsAsync();
@@ -102,7 +109,9 @@ public sealed class ApiPersistenceTests : IClassFixture<SmartQuoteFactory>
         Assert.Equal(1L, await command.ExecuteScalarAsync());
     }
 
+    // TS04/E1: Authorized Purchase Order Lookup Reads Persisted Order; comprobación API y PostgreSQL real.
     [Fact]
+    [Trait("Story", "TS04"), Trait("Scenario", "E1"), Trait("Category", "Integration")]
     public async Task AuthorizedPurchaseOrderLookupReadsPersistedOrder()
     {
         var order = PurchaseOrder.Create(
@@ -135,7 +144,9 @@ public sealed class ApiPersistenceTests : IClassFixture<SmartQuoteFactory>
         Assert.Single(resource.GetProperty("lines").EnumerateArray());
     }
 
+    // US14/E3: Metrics Without Orders Mark Both Indicators Unavailable; comprobación API y PostgreSQL real.
     [Fact]
+    [Trait("Story", "US14"), Trait("Scenario", "E3"), Trait("Category", "Integration")]
     public async Task MetricsWithoutOrdersMarkBothIndicatorsUnavailable()
     {
         using var manager = Client("PurchaseManager");
@@ -149,7 +160,9 @@ public sealed class ApiPersistenceTests : IClassFixture<SmartQuoteFactory>
         Assert.Equal(JsonValueKind.Null, body.GetProperty("comparativeSavings").ValueKind);
     }
 
+    // US14/E2: Metrics Require Manager And Valid Period; comprobación API y PostgreSQL real.
     [Fact]
+    [Trait("Story", "US14"), Trait("Scenario", "E2"), Trait("Category", "Integration")]
     public async Task MetricsRequireManagerAndValidPeriod()
     {
         using var analyst = Client("PurchaseAnalyst");
@@ -161,7 +174,9 @@ public sealed class ApiPersistenceTests : IClassFixture<SmartQuoteFactory>
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
     }
 
+    // US14/E1: Metrics Count Persisted Request To Order Time Without Inventing Savings; comprobación API y PostgreSQL real.
     [Fact]
+    [Trait("Story", "US14"), Trait("Scenario", "E1"), Trait("Category", "Integration")]
     public async Task MetricsCountPersistedRequestToOrderTimeWithoutInventingSavings()
     {
         var day = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -177,10 +192,10 @@ public sealed class ApiPersistenceTests : IClassFixture<SmartQuoteFactory>
         var requestId = (await ReadJsonAsync(created)).GetProperty("requestId").GetGuid();
 
         var order = PurchaseOrder.Create(
-            new OrderNumber($"US16-{Guid.NewGuid():N}"),
+            new OrderNumber($"US14-{Guid.NewGuid():N}"),
             new ApprovedPurchaseDecision(
                 Guid.NewGuid().ToString(), requestId.ToString(), Guid.NewGuid().ToString(),
-                new SupplierSnapshot("us16-supplier", "Metrics test supplier", "20123456789"),
+                new SupplierSnapshot("us14-supplier", "Metrics test supplier", "20123456789"),
                 "PEN",
                 [new ApprovedPurchaseLine(Guid.NewGuid().ToString(), Guid.NewGuid().ToString(),
                     "Poultry supply", 1m, "unit", 10m)],
@@ -205,7 +220,9 @@ public sealed class ApiPersistenceTests : IClassFixture<SmartQuoteFactory>
             body.GetProperty("comparativeSavings").ToString());
     }
 
+    // US14/E1: Metrics Read Persisted Simulation For Comparative Savings; comprobación API y PostgreSQL real.
     [Fact]
+    [Trait("Story", "US14"), Trait("Scenario", "E1"), Trait("Category", "Integration")]
     public async Task MetricsReadPersistedSimulationForComparativeSavings()
     {
         var day = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -241,9 +258,9 @@ public sealed class ApiPersistenceTests : IClassFixture<SmartQuoteFactory>
             await database.SaveChangesAsync();
         }
 
-        var order = PurchaseOrder.Create(new OrderNumber($"US16-{Guid.NewGuid():N}"),
+        var order = PurchaseOrder.Create(new OrderNumber($"US14-{Guid.NewGuid():N}"),
             new ApprovedPurchaseDecision(run.Id.Value.ToString(), requestId.ToString(), selectedId,
-                new SupplierSnapshot("us16-selected", "Selected supplier", "20123456789"), "PEN",
+                new SupplierSnapshot("us14-selected", "Selected supplier", "20123456789"), "PEN",
                 [new ApprovedPurchaseLine(Guid.NewGuid().ToString(), Guid.NewGuid().ToString(),
                     "Poultry supply", 1m, "unit", 80m)],
                 DeliveryTerms.Create(2, "Warehouse delivery", "Main warehouse"), fingerprint.Value),
@@ -340,8 +357,13 @@ public sealed class ApiPersistenceTests : IClassFixture<SmartQuoteFactory>
     }
 }
 
-public sealed class SmartQuoteFactory : WebApplicationFactory<Program>
+public class SmartQuoteFactory : WebApplicationFactory<Program>
 {
+    private readonly Dictionary<string, string?> _previousEnvironment = new[]
+    {
+        "ConnectionStrings__DefaultConnection", "Jwt__SigningKey", "Jwt__Issuer", "Jwt__Audience",
+        "Database__ApplyMigrations", "AI__Provider", "Logging__EventLog__LogLevel__Default"
+    }.ToDictionary(name => name, Environment.GetEnvironmentVariable);
     public string ConnectionString { get; } =
         Environment.GetEnvironmentVariable("SMARTQUOTE_TEST_CONNECTION")
         ?? throw new InvalidOperationException("SMARTQUOTE_TEST_CONNECTION is required.");
@@ -352,6 +374,9 @@ public sealed class SmartQuoteFactory : WebApplicationFactory<Program>
 
     public SmartQuoteFactory()
     {
+        var parsed = new NpgsqlConnectionStringBuilder(ConnectionString);
+        if (parsed.Host is not ("localhost" or "127.0.0.1") || !parsed.Database!.Contains("test", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Integration tests require a loopback database with 'test' in its name, never production.");
         // Program reads these settings before WebApplicationFactory's host callbacks run.
         Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection", ConnectionString);
         Environment.SetEnvironmentVariable("Jwt__SigningKey", _signingKey);
@@ -365,6 +390,10 @@ public sealed class SmartQuoteFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
+        builder.ConfigureTestServices(services => {
+            services.AddSingleton<SmartQuote.Modules.QuotationIntake.Application.Ports.IQuotationDocumentStorage>(_ => new TemporaryDocumentStorage());
+            services.AddSingleton<SmartQuote.API.SupplyRequests.Application.Ports.IRequestAttachmentStorage>(_ => new TemporaryDocumentStorage());
+        });
         builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
             new Dictionary<string, string?>
             {
@@ -378,15 +407,21 @@ public sealed class SmartQuoteFactory : WebApplicationFactory<Program>
             }));
     }
 
-    public string Token(string role)
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+        foreach (var entry in _previousEnvironment) Environment.SetEnvironmentVariable(entry.Key, entry.Value);
+    }
+
+    public string Token(string role, Guid? userId = null, bool expired = false)
     {
         static string Encode(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=')
             .Replace('+', '-').Replace('/', '_');
-        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - (expired ? 7200 : 0);
         var header = Encode(Encoding.UTF8.GetBytes("{\"alg\":\"HS256\",\"typ\":\"JWT\"}"));
         var payload = Encode(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new Dictionary<string, object>
         {
-            ["sub"] = Guid.NewGuid().ToString(), ["role"] = role,
+            ["sub"] = (userId ?? Guid.NewGuid()).ToString(), ["role"] = role,
             ["iss"] = "SmartQuote", ["aud"] = "SmartQuote.Clients",
             ["iat"] = now, ["nbf"] = now - 5, ["exp"] = now + 3600
         })));

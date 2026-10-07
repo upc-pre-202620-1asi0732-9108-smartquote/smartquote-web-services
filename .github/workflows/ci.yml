@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: Build & Run Unit Tests
+    name: Build, unit, API/PostgreSQL and BDD tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,14 +18,15 @@ jobs:
           global-json-file: global.json
       - name: Restore
         run: dotnet restore
-      - name: Build
-        run: dotnet build --configuration Release --no-restore
-      - name: Test
-        run: dotnet test --configuration Release --no-build --logger
-          "trx;LogFileName=test_results.trx"
+      - name: Test complete purchasing workflow in isolated PostgreSQL
+        shell: pwsh
+        run: ./tests/run-tests.ps1 -Coverage
       - name: Upload Test Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: backend-test-results
-          path: '**/*.trx'
+          path: |
+            artifacts/test-results/**/*.trx
+            artifacts/test-results/**/*.cobertura.xml
+          if-no-files-found: error

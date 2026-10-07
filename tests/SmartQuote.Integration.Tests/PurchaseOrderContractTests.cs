@@ -26,9 +26,11 @@ public sealed class PurchaseOrderContractTests(PurchaseOrderContractFactory fact
 {
     private readonly PurchaseOrderContractFactory _factory = factory;
 
+    // TS04/E1: Authorized Consumer Receives Normalized Order; comprobación HTTP con repositorios preparados.
     [Theory]
     [InlineData("PurchaseManager")]
     [InlineData("PurchaseAnalyst")]
+    [Trait("Story", "TS04"), Trait("Scenario", "E1"), Trait("Category", "Contract")]
     public async Task AuthorizedConsumerReceivesNormalizedOrder(string role)
     {
         using var client = Client(role);
@@ -51,7 +53,9 @@ public sealed class PurchaseOrderContractTests(PurchaseOrderContractFactory fact
         Assert.Equal(5m, line.GetProperty("unitPrice").GetDecimal());
     }
 
+    // TS02/E2: Missing Token Returns Structured Unauthorized Response; comprobación HTTP con repositorios preparados.
     [Fact]
+    [Trait("Story", "TS02"), Trait("Scenario", "E2"), Trait("Category", "Contract")]
     public async Task MissingTokenReturnsStructuredUnauthorizedResponse()
     {
         using var client = _factory.CreateClient();
@@ -60,7 +64,9 @@ public sealed class PurchaseOrderContractTests(PurchaseOrderContractFactory fact
         Assert.Equal("Bearer", response.Headers.WwwAuthenticate.Single().Scheme);
     }
 
+    // TS02/E2: Invalid Token Returns Structured Unauthorized Response; comprobación HTTP con repositorios preparados.
     [Fact]
+    [Trait("Story", "TS02"), Trait("Scenario", "E2"), Trait("Category", "Contract")]
     public async Task InvalidTokenReturnsStructuredUnauthorizedResponse()
     {
         using var client = _factory.CreateClient();
@@ -69,7 +75,9 @@ public sealed class PurchaseOrderContractTests(PurchaseOrderContractFactory fact
         await AssertProblem(response, HttpStatusCode.Unauthorized, "authentication_required");
     }
 
+    // TS04/E2: Unpermitted Role Returns Structured Forbidden Response; comprobación HTTP con repositorios preparados.
     [Fact]
+    [Trait("Story", "TS04"), Trait("Scenario", "E2"), Trait("Category", "Contract")]
     public async Task UnpermittedRoleReturnsStructuredForbiddenResponse()
     {
         using var client = Client("ProductionSpecialist");
@@ -77,7 +85,9 @@ public sealed class PurchaseOrderContractTests(PurchaseOrderContractFactory fact
         await AssertProblem(response, HttpStatusCode.Forbidden, "forbidden");
     }
 
+    // TS02/E3: Analyst Cannot Approve And Generate Order; comprobación HTTP con repositorios preparados.
     [Fact]
+    [Trait("Story", "TS02"), Trait("Scenario", "E3"), Trait("Category", "Contract")]
     public async Task AnalystCannotApproveAndGenerateOrder()
     {
         using var client = Client("PurchaseAnalyst");
@@ -87,7 +97,9 @@ public sealed class PurchaseOrderContractTests(PurchaseOrderContractFactory fact
         await AssertProblem(response, HttpStatusCode.Forbidden, "forbidden");
     }
 
+    // TS04/E2: Unknown Order Returns Structured Not Found Response; comprobación HTTP con repositorios preparados.
     [Fact]
+    [Trait("Story", "TS04"), Trait("Scenario", "E2"), Trait("Category", "Contract")]
     public async Task UnknownOrderReturnsStructuredNotFoundResponse()
     {
         using var client = Client("PurchaseManager");
@@ -95,7 +107,9 @@ public sealed class PurchaseOrderContractTests(PurchaseOrderContractFactory fact
         await AssertProblem(response, HttpStatusCode.NotFound, "resource_not_found");
     }
 
+    // TS04/E3: Open Api Documents Response And Errors; comprobación HTTP con repositorios preparados.
     [Fact]
+    [Trait("Story", "TS04"), Trait("Scenario", "E3"), Trait("Category", "Contract")]
     public async Task OpenApiDocumentsResponseAndErrors()
     {
         using var client = _factory.CreateClient();
@@ -107,6 +121,15 @@ public sealed class PurchaseOrderContractTests(PurchaseOrderContractFactory fact
             .GetProperty("get").GetProperty("responses");
         foreach (var status in new[] { "200", "401", "403", "404" })
             Assert.True(responses.TryGetProperty(status, out _), $"OpenAPI omits HTTP {status}.");
+        // TS04/E3: también se verifican nombres y tipos, no solo los códigos HTTP.
+        var schemaReference = responses.GetProperty("200").GetProperty("content")
+            .GetProperty("application/json").GetProperty("schema").GetProperty("$ref").GetString()!;
+        var schema = json.RootElement.GetProperty("components").GetProperty("schemas").GetProperty(schemaReference.Split('/').Last());
+        var properties = schema.GetProperty("properties");
+        foreach (var name in new[] { "purchaseOrderId", "orderNumber", "supplierBusinessName", "supplierTaxIdentifier", "currency", "status", "approvedAt", "createdAt" })
+            Assert.Equal("string", properties.GetProperty(name).GetProperty("type").GetString());
+        Assert.Equal("number", properties.GetProperty("total").GetProperty("type").GetString());
+        Assert.Equal("array", properties.GetProperty("lines").GetProperty("type").GetString());
     }
 
     private HttpClient Client(string role)
@@ -117,7 +140,9 @@ public sealed class PurchaseOrderContractTests(PurchaseOrderContractFactory fact
         return client;
     }
 
+    // US09/E3: Login Rate Limit Reports AWait Of At Most15Seconds; comprobación HTTP con repositorios preparados.
     [Fact]
+    [Trait("Story", "US09"), Trait("Scenario", "E3"), Trait("Category", "Contract")]
     public async Task LoginRateLimitReportsAWaitOfAtMost15Seconds()
     {
         using var client = _factory.CreateClient();
@@ -136,9 +161,11 @@ public sealed class PurchaseOrderContractTests(PurchaseOrderContractFactory fact
         Assert.Contains("segundos", json.RootElement.GetProperty("detail").GetString());
     }
 
+    // US13/E3: Supplier History Matches The Summary And Retains Traceability; comprobación HTTP con repositorios preparados.
     [Theory]
     [InlineData("PurchaseManager")]
     [InlineData("PurchaseAnalyst")]
+    [Trait("Story", "US13"), Trait("Scenario", "E3"), Trait("Category", "Contract")]
     public async Task SupplierHistoryMatchesTheSummaryAndRetainsTraceability(string role)
     {
         using var client = Client(role);
@@ -164,7 +191,9 @@ public sealed class PurchaseOrderContractTests(PurchaseOrderContractFactory fact
         }
     }
 
+    // US13/E3: Supplier Without Evaluations Has Empty History And No Invented Score; comprobación HTTP con repositorios preparados.
     [Fact]
+    [Trait("Story", "US13"), Trait("Scenario", "E3"), Trait("Category", "Contract")]
     public async Task SupplierWithoutEvaluationsHasEmptyHistoryAndNoInventedScore()
     {
         using var client = Client("PurchaseAnalyst");
@@ -177,7 +206,9 @@ public sealed class PurchaseOrderContractTests(PurchaseOrderContractFactory fact
             Assert.Equal(JsonValueKind.Null, json.RootElement.GetProperty(property).ValueKind);
     }
 
+    // US13/E3: Production Cannot Read Supplier Evaluations; comprobación HTTP con repositorios preparados.
     [Fact]
+    [Trait("Story", "US13"), Trait("Scenario", "E3"), Trait("Category", "Contract")]
     public async Task ProductionCannotReadSupplierEvaluations()
     {
         using var client = Client("ProductionSpecialist");
@@ -185,7 +216,9 @@ public sealed class PurchaseOrderContractTests(PurchaseOrderContractFactory fact
         await AssertProblem(response, HttpStatusCode.Forbidden, "forbidden");
     }
 
+    // US13/E2: Undelivered Order Cannot Be Evaluated; comprobación HTTP con repositorios preparados.
     [Fact]
+    [Trait("Story", "US13"), Trait("Scenario", "E2"), Trait("Category", "Contract")]
     public async Task UndeliveredOrderCannotBeEvaluated()
     {
         using var client = Client("PurchaseAnalyst");

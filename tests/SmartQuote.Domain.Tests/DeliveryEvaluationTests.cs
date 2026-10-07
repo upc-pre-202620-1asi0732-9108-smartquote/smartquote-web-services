@@ -18,7 +18,9 @@ public sealed class DeliveryEvaluationTests
             new UserId(Guid.NewGuid()),
             DateTimeOffset.UtcNow);
 
+    // US13/E1: Create Stores Scores Supplier And Trimmed Observations; comprobación aislada.
     [Fact]
+    [Trait("Story", "US13"), Trait("Scenario", "E1"), Trait("Category", "Unit")]
     public void CreateStoresScoresSupplierAndTrimmedObservations()
     {
         var evaluation = Create(onTime: 3, quality: 5, observations: "  Entrega tardía de un día.  ");
@@ -29,17 +31,21 @@ public sealed class DeliveryEvaluationTests
         Assert.Equal("Entrega tardía de un día.", evaluation.Observations);
     }
 
+    // US13/E2: Create Rejects Scores Outside The Allowed Scale; comprobación aislada.
     [Theory]
     [InlineData(0)]
     [InlineData(6)]
     [InlineData(-1)]
+    [Trait("Story", "US13"), Trait("Scenario", "E2"), Trait("Category", "Unit")]
     public void CreateRejectsScoresOutsideTheAllowedScale(int score)
     {
         Assert.Throws<DomainException>(() => Create(onTime: score));
         Assert.Throws<DomainException>(() => Create(quality: score));
     }
 
+    // US13/E2: Create Rejects Observations Longer Than The Limit; comprobación aislada.
     [Fact]
+    [Trait("Story", "US13"), Trait("Scenario", "E2"), Trait("Category", "Unit")]
     public void CreateRejectsObservationsLongerThanTheLimit()
     {
         var tooLong = new string('x', DeliveryEvaluation.MaximumObservationsLength + 1);
@@ -47,7 +53,9 @@ public sealed class DeliveryEvaluationTests
         Assert.Throws<DomainException>(() => Create(observations: tooLong));
     }
 
+    // US13/E1: Create Accepts Empty Observations As Null; comprobación aislada.
     [Fact]
+    [Trait("Story", "US13"), Trait("Scenario", "E1"), Trait("Category", "Unit")]
     public void CreateAcceptsEmptyObservationsAsNull()
     {
         var evaluation = Create(observations: "   ");
@@ -55,7 +63,9 @@ public sealed class DeliveryEvaluationTests
         Assert.Null(evaluation.Observations);
     }
 
+    // US13/E2: Create Accepts Exactly500Characters; comprobación aislada.
     [Fact]
+    [Trait("Story", "US13"), Trait("Scenario", "E2"), Trait("Category", "Unit")]
     public void CreateAcceptsExactly500Characters()
     {
         var observations = new string('x', 500);

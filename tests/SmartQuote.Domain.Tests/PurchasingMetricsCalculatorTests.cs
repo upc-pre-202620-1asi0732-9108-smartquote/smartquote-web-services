@@ -4,11 +4,13 @@ using SmartQuote.Modules.EvaluationSimulation.Domain.Model.Entities;
 using SmartQuote.Modules.EvaluationSimulation.Domain.Model.ValueObjects;
 using Xunit;
 
-namespace SmartQuote.Integration.Tests;
+namespace SmartQuote.Domain.Tests;
 
 public sealed class PurchasingMetricsCalculatorTests
 {
+    // US14/E1: Selected Cheapest Quotation Uses Cheapest Other Eligible Offer; comprobación aislada.
     [Fact]
+    [Trait("Story", "US14"), Trait("Scenario", "E1"), Trait("Category", "Unit")]
     public void SelectedCheapestQuotationUsesCheapestOtherEligibleOffer()
     {
         var selected = Guid.NewGuid().ToString();
@@ -26,7 +28,9 @@ public sealed class PurchasingMetricsCalculatorTests
         Assert.Equal(0m, PurchasingMetricsCalculator.ComparativeSavingsPen(run, alternative));
     }
 
+    // US14/E1: Mixed Currencies Use Stored Rate; comprobación aislada.
     [Fact]
+    [Trait("Story", "US14"), Trait("Scenario", "E1"), Trait("Category", "Unit")]
     public void MixedCurrenciesUseStoredRate()
     {
         var selected = Guid.NewGuid().ToString();
@@ -40,7 +44,9 @@ public sealed class PurchasingMetricsCalculatorTests
         Assert.Equal(20m, PurchasingMetricsCalculator.ComparativeSavingsPen(run, selected));
     }
 
+    // US14/E3: Missing Comparable Alternative Is Unavailable; comprobación aislada.
     [Fact]
+    [Trait("Story", "US14"), Trait("Scenario", "E3"), Trait("Category", "Unit")]
     public void MissingComparableAlternativeIsUnavailable()
     {
         var selected = Guid.NewGuid().ToString();

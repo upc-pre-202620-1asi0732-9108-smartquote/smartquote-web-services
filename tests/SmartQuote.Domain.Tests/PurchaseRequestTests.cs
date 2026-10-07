@@ -10,7 +10,9 @@ namespace SmartQuote.Domain.Tests;
 
 public sealed class PurchaseRequestTests
 {
+    // US02/E2: Create Requires At Least One Item With AMandatory Requirement; comprobación aislada.
     [Fact]
+    [Trait("Story", "US02"), Trait("Scenario", "E2"), Trait("Category", "Unit")]
     public void CreateRequiresAtLeastOneItemWithAMandatoryRequirement()
     {
         var requester = new UserId(Guid.NewGuid());
@@ -26,7 +28,9 @@ public sealed class PurchaseRequestTests
             PurchaseRequest.Create(requester, date, RequestPriority.Normal, [item]));
     }
 
+    // US02/E1: Create Starts Submitted With Initial History And Version; comprobación aislada.
     [Fact]
+    [Trait("Story", "US02"), Trait("Scenario", "E1"), Trait("Category", "Unit")]
     public void CreateStartsSubmittedWithInitialHistoryAndVersion()
     {
         var request = NewRequest();
@@ -38,7 +42,9 @@ public sealed class PurchaseRequestTests
         Assert.Equal(RequestStatus.Submitted, entry.ToStatus);
     }
 
+    // US03/E3: Allowed Transitions Advance Version And Keep History; comprobación aislada.
     [Fact]
+    [Trait("Story", "US03"), Trait("Scenario", "E3"), Trait("Category", "Unit")]
     public void AllowedTransitionsAdvanceVersionAndKeepHistory()
     {
         var request = NewRequest();
@@ -55,7 +61,9 @@ public sealed class PurchaseRequestTests
             entry => Assert.Equal(RequestStatus.QuotationCollection, entry.ToStatus));
     }
 
+    // US03/E2: Invalid Transition Cannot Skip Review; comprobación aislada.
     [Fact]
+    [Trait("Story", "US03"), Trait("Scenario", "E2"), Trait("Category", "Unit")]
     public void InvalidTransitionCannotSkipReview()
     {
         var request = NewRequest();
@@ -68,7 +76,9 @@ public sealed class PurchaseRequestTests
         Assert.Single(request.StatusHistory);
     }
 
+    // US03/E2: Status Change Requires Reason And Different Next Status; comprobación aislada.
     [Fact]
+    [Trait("Story", "US03"), Trait("Scenario", "E2"), Trait("Category", "Unit")]
     public void StatusChangeRequiresReasonAndDifferentNextStatus()
     {
         var request = NewRequest();
@@ -84,7 +94,9 @@ public sealed class PurchaseRequestTests
         Assert.Single(request.StatusHistory);
     }
 
+    // US03/E2: Cancelled Request Cannot Reopen; comprobación aislada.
     [Fact]
+    [Trait("Story", "US03"), Trait("Scenario", "E2"), Trait("Category", "Unit")]
     public void CancelledRequestCannotReopen()
     {
         var request = NewRequest();

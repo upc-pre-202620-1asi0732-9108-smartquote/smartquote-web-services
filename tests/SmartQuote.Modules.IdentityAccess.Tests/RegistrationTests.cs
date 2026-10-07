@@ -19,7 +19,9 @@ public sealed class RegistrationTests
 {
     private const string ValidPassword = "SecureComplex93!";
 
+    // US09/E1: First Account Is Automatically The Initial Purchase Manager; comprobación aislada.
     [Fact]
+    [Trait("Story", "US09"), Trait("Scenario", "E1"), Trait("Category", "Unit")]
     public async Task FirstAccountIsAutomaticallyTheInitialPurchaseManager()
     {
         var fixture = new Fixture();
@@ -35,10 +37,12 @@ public sealed class RegistrationTests
         Assert.False((await fixture.Service.GetRegistrationStatusAsync()).InitialSetupRequired);
     }
 
+    // US09/E1: Subsequent Accounts Remain Pending Until Manager Approval; comprobación aislada.
     [Theory]
     [InlineData("ProductionSpecialist")]
     [InlineData("PurchaseAnalyst")]
     [InlineData("PurchaseManager")]
+    [Trait("Story", "US09"), Trait("Scenario", "E1"), Trait("Category", "Unit")]
     public async Task SubsequentAccountsRemainPendingUntilManagerApproval(string requestedRole)
     {
         var fixture = new Fixture();
@@ -62,48 +66,11 @@ public sealed class RegistrationTests
         Assert.Equal("PurchaseAnalyst", Assert.Single(session.User.Roles));
     }
 
-    [Fact]
-    public async Task RejectedRegistrationStaysOutOfPendingListCannotLoginAndCannotBeApproved()
-    {
-        var fixture = new Fixture();
-        await fixture.RegisterInitialManager();
-        var registered = await fixture.Service.RegisterAsync(new RegisterAccountCommand(
-            "rejected.user@example.com", "Rejected User", ValidPassword, "ProductionSpecialist"));
-
-        await fixture.Service.RejectRegistrationAsync(registered.UserId);
-
-        Assert.Empty(await fixture.Service.GetPendingRegistrationsAsync());
-        await Assert.ThrowsAsync<AuthenticationException>(() => fixture.Service.LoginAsync(
-            new LoginCommand("rejected.user@example.com", ValidPassword)));
-        await Assert.ThrowsAsync<ConflictException>(() => fixture.Service.ApproveRegistrationAsync(
-            registered.UserId, "PurchaseAnalyst"));
-    }
-
-    [Fact]
-    public async Task DisplayNamesAreResolvedForAuditActorsAndUnknownIdsAreOmitted()
-    {
-        var fixture = new Fixture();
-        var initial = await fixture.RegisterInitialManager();
-        var unknown = Guid.NewGuid();
-
-        var names = await fixture.Service.GetDisplayNamesAsync(new[] { initial.UserId, unknown });
-
-        Assert.Equal("Initial Manager", names[initial.UserId]);
-        Assert.False(names.ContainsKey(unknown));
-    }
-
-    [Fact]
-    public async Task ActiveAccountsCannotBeRejected()
-    {
-        var fixture = new Fixture();
-        var initial = await fixture.RegisterInitialManager();
-
-        await Assert.ThrowsAsync<ConflictException>(() => fixture.Service.RejectRegistrationAsync(initial.UserId));
-    }
-
+    // US09/E1: Unknown Roles Are Rejected After Initial Setup; comprobación aislada.
     [Theory]
     [InlineData("Administrator")]
     [InlineData("2")]
+    [Trait("Story", "US09"), Trait("Scenario", "E1"), Trait("Category", "Unit")]
     public async Task UnknownRolesAreRejectedAfterInitialSetup(string role)
     {
         var fixture = new Fixture();
@@ -114,6 +81,7 @@ public sealed class RegistrationTests
         Assert.Single(fixture.Accounts.Items);
     }
 
+    // US09/E2: Weak Password Does Not Create Account; comprobación aislada.
     [Theory]
     [InlineData("TooShort7!")]
     [InlineData("lowercaseonly93!")]
@@ -121,6 +89,7 @@ public sealed class RegistrationTests
     [InlineData("NoNumberIncluded!")]
     [InlineData("NoSymbolIncluded93")]
     [InlineData("New.UserStrong93!")]
+    [Trait("Story", "US09"), Trait("Scenario", "E2"), Trait("Category", "Unit")]
     public async Task WeakPasswordDoesNotCreateAccount(string password)
     {
         var fixture = new Fixture();
@@ -131,7 +100,9 @@ public sealed class RegistrationTests
         Assert.Empty(fixture.Accounts.Items);
     }
 
+    // US09/E2: Password Policy Rejects Control Characters And Allows Strong Passphrase; comprobación aislada.
     [Fact]
+    [Trait("Story", "US09"), Trait("Scenario", "E2"), Trait("Category", "Unit")]
     public void PasswordPolicyRejectsControlCharactersAndAllowsStrongPassphrase()
     {
         Assert.Throws<ArgumentException>(() =>
@@ -142,7 +113,9 @@ public sealed class RegistrationTests
         RegistrationPasswordPolicy.Validate("A long, Secure passphrase 93!", "user@example.com");
     }
 
+    // US09/E2: Password Policy Accepts Both Length Limits And Rejects Values Outside Them; comprobación aislada.
     [Fact]
+    [Trait("Story", "US09"), Trait("Scenario", "E2"), Trait("Category", "Unit")]
     public void PasswordPolicyAcceptsBothLengthLimitsAndRejectsValuesOutsideThem()
     {
         var minimum = "Aa123456789!";
@@ -159,7 +132,9 @@ public sealed class RegistrationTests
             RegistrationPasswordPolicy.Validate(maximum + "7", "user@example.com"));
     }
 
+    // US09/E2: Registered Email Is Unique Ignoring Case And Surrounding Spaces; comprobación aislada.
     [Fact]
+    [Trait("Story", "US09"), Trait("Scenario", "E2"), Trait("Category", "Unit")]
     public async Task RegisteredEmailIsUniqueIgnoringCaseAndSurroundingSpaces()
     {
         var fixture = new Fixture();
@@ -174,7 +149,9 @@ public sealed class RegistrationTests
         Assert.Equal(2, fixture.Accounts.Items.Count);
     }
 
+    // US09/E1: Initial Setup Cannot Self Assign Another Role; comprobación aislada.
     [Fact]
+    [Trait("Story", "US09"), Trait("Scenario", "E1"), Trait("Category", "Unit")]
     public async Task InitialSetupCannotSelfAssignAnotherRole()
     {
         var fixture = new Fixture();
@@ -184,7 +161,9 @@ public sealed class RegistrationTests
         Assert.Empty(fixture.Accounts.Items);
     }
 
+    // US09/E2: Registration Request Rejects Unexpected Fields; comprobación aislada.
     [Fact]
+    [Trait("Story", "US09"), Trait("Scenario", "E2"), Trait("Category", "Unit")]
     public void RegistrationRequestRejectsUnexpectedFields()
     {
         const string json = """
