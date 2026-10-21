@@ -117,3 +117,7 @@ US15, US16 y US22: [endpoints, ejemplos, migraciones y pruebas](docs/us15-us16-u
 ## Habilitación de proveedores y presupuesto
 
 US18 y US20: [guía de endpoints y migraciones](docs/us18-us20-api.md). Los proveedores nuevos e históricos conciliados comienzan pendientes de habilitación por el jefe para nuevas compras. La aprobación verifica el estado actual y el presupuesto autorizado, conservando la tasa de la simulación para USD; no se requieren claves adicionales.
+
+## Vencimientos, sensibilidad y compra distribuida
+
+US17, US19 y US21: [rutas, ejemplos, configuración, tablas y pruebas](docs/us17-us19-us21-api.md). Incluye alertas para el analista asignado, comparación de pesos sin modificar criterios oficiales y adjudicación por ítem con una orden por proveedor, presupuesto global y guardado transaccional. Los clientes web/móvil todavía deben incorporar las pantallas de estas historias. Aplicar las nuevas migraciones antes de utilizarlas.

@@ -61,12 +61,12 @@ public class SimulationApplicationService(
             exchangeRate = await exchangeRateProvider.GetUsdToPenAsync(peruDate, cancellationToken);
         }
 
-        var fingerprint = InputFingerprint.FromParts(dataset.CalculateFingerprint(exchangeRate).Value, scenario.CalculateDefinitionFingerprint().Value);
+        var fingerprint = InputFingerprint.FromParts(dataset.CalculateFingerprint(exchangeRate, DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime.AddHours(-5))).Value, scenario.CalculateDefinitionFingerprint().Value);
         var existingRun = await runRepository.FindByFingerprintAsync(fingerprint, cancellationToken);
         if (existingRun is not null)
             return new SimulationRunExecutionResult(existingRun.Id, false);
 
-        var run = simulationEngine.Run(scenario, dataset, exchangeRate);
+        var run = simulationEngine.Run(scenario, dataset, exchangeRate, DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime.AddHours(-5)));
 
         await runRepository.AddAsync(run, cancellationToken);
         await unitOfWork.CompleteAsync(cancellationToken);
@@ -102,6 +102,8 @@ public class SimulationApplicationService(
     public async Task<ApprovedSimulationSnapshot?> GetApprovedSnapshotAsync(Guid runId, string quotationId, CancellationToken cancellationToken = default)
     {
         var run = await FindOrThrowAsync(runId, cancellationToken);
+
+        if (run.Mode != "SingleSupplier") throw new DomainException("A distributed simulation must be approved through purchase-awards, not a single quotation.");
 
         await validityService.EnsureCurrentAsync(run, cancellationToken);
 
@@ -180,5 +182,5 @@ public class SimulationApplicationService(
                 originalTotal.Currency != comparableTotal.Currency,
                 evaluation.CriterionResults.Select(result => new CriterionResultView(result.CriterionId, result.Passed, result.NormalizedScore, result.WeightedContribution, result.Explanation)).ToList(),
                 evaluation.ExclusionReasons.Select(reason => new ExclusionReasonView(reason.CriterionId?.Value, reason.Code, reason.Explanation)).ToList());
-        }).ToList());
+        }).ToList(), run.Mode, run.Distribution);
 }

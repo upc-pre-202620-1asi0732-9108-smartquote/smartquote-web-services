@@ -42,6 +42,12 @@ public static class EvaluationSimulationModule
         services.AddScoped<SimulationValidityService>();
         services.AddScoped<ScenarioApplicationService>();
         services.AddScoped<SimulationApplicationService>();
+        services.AddScoped<EvaluationPreparationService>();
+        services.AddScoped<SensitivityAnalysisService>();
+        services.AddScoped<DistributedSimulationEngine>();
+        services.AddScoped<DistributedSimulationService>();
+        services.AddScoped<IDistributedDecisionReader>(sp => sp.GetRequiredService<DistributedSimulationService>());
+        services.AddScoped<IAdvancedEvaluationStore, AdvancedEvaluationStore>();
         services.AddScoped<ISimulationDecisionReader>(provider =>
             provider.GetRequiredService<SimulationApplicationService>());
 

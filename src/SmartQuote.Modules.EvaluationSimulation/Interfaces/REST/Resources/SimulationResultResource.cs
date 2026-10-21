@@ -9,7 +9,9 @@ public record SimulationResultResource(
     bool IsCurrent,
     RecommendationResource? Recommendation,
     ExchangeRateResource? ExchangeRate,
-    IReadOnlyList<QuotationEvaluationResource> Evaluations);
+    IReadOnlyList<QuotationEvaluationResource> Evaluations,
+    string Mode = "SingleSupplier",
+    SmartQuote.Modules.EvaluationSimulation.Domain.Model.ValueObjects.DistributedSimulationResult? Distribution = null);
 
 public record QuotationEvaluationResource(
     string QuotationId,

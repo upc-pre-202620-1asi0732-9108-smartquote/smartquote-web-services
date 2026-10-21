@@ -91,6 +91,64 @@ namespace SmartQuote.Modules.QuotationIntake.Infrastructure.Persistence.EFC.Migr
                     b.ToTable("poultry_quotes", "quotation_intake");
                 });
 
+            modelBuilder.Entity("SmartQuote.Modules.QuotationIntake.Domain.Model.Aggregates.QuotationExpiryAlert", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("LeadDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("lead_days");
+
+                    b.Property<Guid>("QuotationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("quotation_id");
+
+                    b.Property<DateTimeOffset?>("ReadAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_at");
+
+                    b.Property<DateTimeOffset?>("ReassignedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reassigned_at");
+
+                    b.Property<Guid>("RecipientId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recipient_id");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("request_id");
+
+                    b.Property<string>("SupplierName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("supplier_name");
+
+                    b.Property<DateOnly>("ValidUntil")
+                        .HasColumnType("date")
+                        .HasColumnName("valid_until");
+
+                    b.HasKey("Id")
+                        .HasName("pk_quotation_expiry_alerts");
+
+                    b.HasIndex("RecipientId", "ReadAt")
+                        .HasDatabaseName("ix_quotation_expiry_alerts_recipient_id_read_at");
+
+                    b.HasIndex("QuotationId", "ValidUntil", "LeadDays")
+                        .IsUnique()
+                        .HasDatabaseName("ix_quotation_expiry_alerts_quotation_id_valid_until_lead_days");
+
+                    b.ToTable("quotation_expiry_alerts", "quotation_intake");
+                });
+
             modelBuilder.Entity("SmartQuote.Modules.QuotationIntake.Domain.Model.Aggregates.PoultryQuote", b =>
                 {
                     b.OwnsOne("SmartQuote.Modules.QuotationIntake.Domain.Model.ValueObjects.SourceDocument", "SourceDocument", b1 =>

@@ -163,6 +163,10 @@ builder.Services.AddQuotationIntakeModule(builder.Configuration, connectionStrin
 builder.Services.AddEvaluationSimulationModule(builder.Configuration, connectionString);
 builder.Services.AddPurchaseOrderingModule(builder.Configuration, connectionString);
 builder.Services.AddScoped<IOrderRequestLifecycle, OrderRequestLifecycleAdapter>();
+builder.Services.AddScoped<IAtomicAwardCommitter, AtomicAwardCommitter>();
+builder.Services.AddSingleton<OrderingOutboxDispatcher>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<OrderingOutboxDispatcher>());
+builder.Services.AddScoped<SmartQuote.Modules.QuotationIntake.Application.Ports.IAlertRequestReader, AlertRequestReader>();
 builder.Services.AddIdentityAccessModule(builder.Configuration, connectionString);
 builder.Services.AddScoped<IActorNameDirectory, SmartQuote.API.Integration.IdentityActorNameDirectory>();
 builder.Services.AddScoped<SmartQuote.API.SupplyRequests.Application.Ports.IRequestUserDirectory, RequestUserDirectoryAdapter>();

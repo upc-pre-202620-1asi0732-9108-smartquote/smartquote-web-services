@@ -24,7 +24,9 @@ public class PurchaseOrderApplicationService(
     IDomainEventDispatcher domainEventDispatcher,
     IDeliveryEvaluationRepository deliveryEvaluations,
     ICurrentUser currentUser,
-    IOrderingPolicyStore policies)
+    IOrderingPolicyStore policies,
+    IPurchaseAwardStore awards,
+    IAtomicAwardCommitter atomicCommitter)
 {
     public async Task<PurchaseOrderGenerationResult> ApproveAndGenerateAsync(ApproveAndGenerateCommand command, CancellationToken cancellationToken = default)
     {
@@ -84,14 +86,20 @@ public class PurchaseOrderApplicationService(
             assessment.TotalPen, assessment.MarginPen, snapshot.ExchangeRate?.Rate, snapshot.ExchangeRate?.Source,
             snapshot.ExchangeRate?.RateType, snapshot.ExchangeRate?.PublishedOn, snapshot.ExchangeRate?.RetrievedAt));
 
+        var award = PurchaseAward.Create(Guid.Parse(snapshot.RequestId), command.SimulationRunId, "SingleSupplier", snapshot.InputFingerprint,
+            idempotencyKey, snapshot.InputFingerprint, currentUser.UserId, approval.ApprovedAt, assessment.TotalPen,
+            assessment.BudgetVersion, assessment.BudgetAmountPen, []);
+        if (snapshot.ExchangeRate is { } fx) award.RecordRate(fx.Rate, fx.Source, fx.RateType, fx.PublishedOn, fx.RetrievedAt);
+        awards.Add(award); order.LinkAward(award.Id, supplier.Id);
+
         await repository.AddAsync(order, cancellationToken);
+        await atomicCommitter.PrepareAsync(snapshot.RequestId, order.OrderNumber.Value, order.DomainEvents,
+            async token => { await decisionReader.GetApprovedSnapshotAsync(command.SimulationRunId, command.QuotationId, token); }, cancellationToken);
         await unitOfWork.CompleteAsync(cancellationToken);
         await policyLease.CommitAsync(cancellationToken);
 
-        await domainEventDispatcher.DispatchAsync(order.DomainEvents, cancellationToken);
         order.ClearDomainEvents();
-
-        await requestLifecycle.EnsureOrderedAsync(snapshot.RequestId, order.OrderNumber.Value, cancellationToken);
+        await atomicCommitter.AfterCommitAsync(cancellationToken);
 
         return new PurchaseOrderGenerationResult(ToView(order), true);
     }
@@ -206,7 +214,7 @@ public class PurchaseOrderApplicationService(
         evaluation.EvaluatedBy.Value,
         evaluation.EvaluatedAt);
 
-    private static PurchaseOrderView ToView(PurchaseOrder order) => new(
+    public static PurchaseOrderView ToView(PurchaseOrder order) => new(
         order.Id,
         order.OrderNumber.Value,
         order.SourceDecision.SimulationRunId,
@@ -233,5 +241,5 @@ public class PurchaseOrderApplicationService(
             line.Description,
             line.Quantity,
             line.UnitOfMeasure,
-            line.UnitPrice)).ToList(), order.PolicyEvidence);
+            line.UnitPrice, line.SourceQuotationId, line.OriginalCurrency, line.OriginalUnitPrice)).ToList(), order.PolicyEvidence, order.AwardId);
 }

@@ -24,7 +24,7 @@ public class QuoteExtractionService(
     ICurrentUser currentUser,
     IConfiguration configuration,
     ILogger<QuoteExtractionService> logger,
-    ISupplierRegistration suppliers) : IVerifiedQuotationSnapshotProvider
+    ISupplierRegistration suppliers, TimeProvider clock) : IVerifiedQuotationSnapshotProvider
 {
     private const int DefaultMaxDocumentSizeBytes = 15 * 1024 * 1024;
 
@@ -286,7 +286,7 @@ public class QuoteExtractionService(
             throw new ConflictException($"Expected version {expected}, but the current quotation version is {actual}.");
     }
 
-    private static PoultryQuoteView ToView(PoultryQuote quote) => new(
+    private PoultryQuoteView ToView(PoultryQuote quote) => new(
         quote.Id,
         quote.RequestReference.RequestId,
         quote.Supplier.SupplierId,
@@ -330,7 +330,10 @@ public class QuoteExtractionService(
                 correction.CorrectedValue,
                 correction.CorrectedBy,
                 correction.CorrectedAt,
-                correction.Reason)).ToList())).ToList());
+                correction.Reason)).ToList())).ToList(),
+        quote.Status.ToString() == "Verified" && quote.ValidUntil >= DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime.AddHours(-5)),
+        quote.Status.ToString() != "Verified" ? "NotVerified" : !quote.ValidUntil.HasValue ? "ValidityUnknown" :
+            quote.ValidUntil < DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime.AddHours(-5)) ? "Expired" : "Current");
 
     private static VerifiedQuotationSnapshot ToSnapshot(PoultryQuote quote) => new(
         quote.Id.ToString(),
@@ -353,5 +356,5 @@ public class QuoteExtractionService(
                 specification.Value,
                 specification.UnitOfMeasure)).ToList())).ToList(),
         quote.DeliveryLeadTimeDays ?? throw new DomainException("Verified quotation delivery lead time is missing."),
-        quote.VerifiedAt ?? throw new DomainException("Verified quotation timestamp is missing."));
+        quote.VerifiedAt ?? throw new DomainException("Verified quotation timestamp is missing."), quote.ValidUntil);
 }

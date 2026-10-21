@@ -178,14 +178,17 @@ package "PurchaseOrdering.Domain" #DFF2E1 {
         - Description: string
         - Quantity: decimal
         - UnitOfMeasure: string
-        - UnitPrice: Money
+        - UnitPrice: decimal
+        + SourceQuotationId: string?
+        + OriginalCurrency: string?
+        + OriginalUnitPrice: decimal?
         + CalculateSubtotal(): Money
     }
 
     class ApprovedPurchaseDecision <<Value Object>> {
         + SimulationRunId: string
         + PurchaseRequestId: string
-        + QuotationId: string
+        + QuotationId: string?
         + Supplier: SupplierSnapshot
         + Currency: string
         + Lines: IReadOnlyList
@@ -215,7 +218,7 @@ package "PurchaseOrdering.Domain" #DFF2E1 {
     class SourceSimulationReference <<Value Object>> {
         + SimulationRunId: string
         + PurchaseRequestId: string
-        + QuotationId: string
+        + QuotationId: string?
         + InputFingerprint: string
     }
 
@@ -312,12 +315,16 @@ note right of PurchaseOrder
   - Todas las líneas usan la misma moneda.
   - Conserva la solicitud, cotización y
     simulación que originaron la decisión.
-  - Una decisión solo produce una orden.
+  - Una orden pertenece a una adjudicación.
+  - En distribución, QuotationId de cabecera es null;
+    se conserva la cotización de origen por línea.
 end note
 
 note bottom of PostgreSqlPurchaseOrderRepository
   La base de datos debe tener restricciones
-  únicas para SimulationRunId e IdempotencyKey.
+  únicas para número e IdempotencyKey.
+  La adjudicación es única por solicitud/simulación;
+  la orden es única por adjudicación/proveedor.
 
   La comprobación de aplicación y la restricción
   de persistencia protegen contra concurrencia.
@@ -341,6 +348,75 @@ note bottom of BudgetAssessment
   La ausencia de presupuesto no equivale a cero.
   USD conserva la tasa oficial de la simulación;
   no se consulta otra tasa al aprobar.
+end note
+
+package "PurchaseOrdering.Domain" {
+    class PurchaseAward <<Aggregate>> {
+        + Id: UUID
+        + RequestId: UUID
+        + SimulationRunId: UUID
+        + Mode: string
+        + InputFingerprint: string
+        + IdempotencyKey: string
+        + RequestHash: string
+        + ApprovedBy: UUID
+        + ApprovedAt: DateTimeOffset
+        + TotalPen: decimal
+        + BudgetVersion: long?
+        + BudgetAmountPen: decimal?
+        + BudgetMarginPen: decimal?
+        + ExchangeRate: decimal?
+        + ExchangeRateSource: string?
+        + RatePublishedOn: DateOnly?
+        + RateRetrievedAt: DateTimeOffset?
+        + Allocations: IReadOnlyList
+    }
+    class AwardAllocation <<Immutable Value>> {
+        + RequestedItemId: UUID
+        + SupplierId: UUID
+        + QuotationId: UUID
+        + QuotationLineId: UUID
+        + Quantity: decimal
+        + OriginalCurrency: string
+        + OriginalUnitPrice: decimal
+        + UnitPricePen: decimal
+        + AmountPen: decimal
+    }
+}
+package "PurchaseOrdering.Application" {
+    class PurchaseAwardApplicationService {
+        + ApproveAsync(runId, key, command): PurchaseAwardExecution
+        + GetAsync(id): PurchaseAwardView
+        + GetForRequestAsync(requestId): PurchaseAwardView
+        + CheckBudgetAsync(runId)
+    }
+    interface IPurchaseAwardStore <<Port>>
+    interface IDistributedDecisionReader <<Imported Published DTO Contract>>
+    interface IAtomicAwardCommitter <<Transactional Port>> {
+        + PrepareAsync(requestId, reference, events, validateLockedDecision)
+        + AfterCommitAsync()
+    }
+}
+package "API Integration Infrastructure" {
+    class AtomicAwardCommitter <<Cross-Context EF Transaction>>
+    class OrderingOutboxDispatcher <<Durable Background Delivery>>
+}
+PurchaseAward *-- AwardAllocation
+PurchaseAward "1" -- "1..*" PurchaseOrder : AwardId
+PurchaseAwardApplicationService --> IPurchaseAwardStore
+PurchaseAwardApplicationService --> IOrderingPolicyStore
+PurchaseAwardApplicationService --> IAtomicAwardCommitter
+PurchaseAwardApplicationService --> IDistributedDecisionReader
+PurchaseOrderApplicationService --> IAtomicAwardCommitter
+AtomicAwardCommitter ..|> IAtomicAwardCommitter
+AtomicAwardCommitter --> OrderingOutboxDispatcher : after commit
+note bottom of PurchaseAward
+  US21: exactly one award per purchase request.
+  One distributed PEN order per winning supplier;
+  complete coverage, current authorization and global budget.
+  Same key/body returns the exact order set; different body conflicts.
+  Orders, award, request transition and outbox share one transaction.
+  No partial issuance, even if a later insert/transition fails.
 end note
 
 @enduml

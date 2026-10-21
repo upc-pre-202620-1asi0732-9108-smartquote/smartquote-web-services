@@ -34,6 +34,8 @@ public static class PurchaseOrderingModule
         services.AddScoped<PurchaseOrderGenerator>();
         services.AddScoped<PurchaseOrderApplicationService>();
         services.AddScoped<IOrderingPolicyStore, OrderingPolicyStore>();
+        services.AddScoped<IPurchaseAwardStore, PurchaseAwardStore>();
+        services.AddScoped<PurchaseAwardApplicationService>();
         services.AddScoped<OrderingPolicyService>();
         services.AddScoped<SmartQuote.Modules.PurchaseOrdering.Application.OutboundServices.ISupplierDirectory, SupplierDirectoryService>();
 

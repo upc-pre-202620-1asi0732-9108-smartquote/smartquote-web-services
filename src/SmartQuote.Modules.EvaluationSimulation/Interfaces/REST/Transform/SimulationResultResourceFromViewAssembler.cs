@@ -33,5 +33,5 @@ public static class SimulationResultResourceFromViewAssembler
                 evaluation.ComparisonCurrency,
                 evaluation.ConversionApplied,
                 evaluation.CriterionResults.Select(result => new CriterionResultResource(result.CriterionId, result.Passed, result.NormalizedScore, result.WeightedContribution, result.Explanation)).ToList(),
-                evaluation.ExclusionReasons.Select(reason => new ExclusionReasonResource(reason.CriterionId, reason.Code, reason.Explanation)).ToList())).ToList());
+                evaluation.ExclusionReasons.Select(reason => new ExclusionReasonResource(reason.CriterionId, reason.Code, reason.Explanation)).ToList())).ToList(), view.Mode, view.Distribution);
 }

@@ -48,14 +48,14 @@ public static class PurchaseOrderModelBuilderExtensions
 
                 decision.Property(d => d.QuotationId)
                     .HasColumnName("source_quotation_id")
-                    .HasConversion(id => Guid.Parse(id), value => value.ToString())
+                    .HasConversion(id => id == null ? (Guid?)null : Guid.Parse(id), value => value == null ? null : value.ToString())
                     .HasColumnType("uuid")
-                    .IsRequired();
+                    .IsRequired(false);
 
                 decision.Property(d => d.InputFingerprint).HasColumnName("input_fingerprint").HasColumnType("char(64)").IsRequired();
 
-                decision.HasIndex(d => d.SimulationRunId).IsUnique();
-                decision.HasIndex(d => d.PurchaseRequestId).IsUnique();
+                decision.HasIndex(d => d.SimulationRunId);
+                decision.HasIndex(d => d.PurchaseRequestId);
             });
 
             entity.OwnsOne(order => order.Supplier, supplier =>
@@ -119,7 +119,8 @@ public static class PurchaseOrderModelBuilderExtensions
                 lines.Property(line => line.Description).IsRequired().HasMaxLength(250);
                 lines.Property(line => line.Quantity).HasColumnType("numeric(18,4)").IsRequired();
                 lines.Property(line => line.UnitOfMeasure).IsRequired().HasMaxLength(30);
-                lines.Property(line => line.UnitPrice).HasColumnType("numeric(18,4)").IsRequired();
+                lines.Property(line => line.UnitPrice).HasColumnType("numeric(28,12)").IsRequired();
+                lines.Property(line => line.OriginalUnitPrice).HasColumnType("numeric(18,4)");
             });
 
             entity.Navigation(order => order.Lines).UsePropertyAccessMode(PropertyAccessMode.Field);

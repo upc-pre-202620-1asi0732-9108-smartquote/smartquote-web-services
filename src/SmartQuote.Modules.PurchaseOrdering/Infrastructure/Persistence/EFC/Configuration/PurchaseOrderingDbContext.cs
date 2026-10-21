@@ -11,12 +11,15 @@ public sealed class PurchaseOrderingDbContext(DbContextOptions<PurchaseOrderingD
     public DbSet<DeliveryEvaluation> DeliveryEvaluations => Set<DeliveryEvaluation>();
     public DbSet<SupplierAccount> SupplierAccounts => Set<SupplierAccount>();
     public DbSet<PurchaseBudget> PurchaseBudgets => Set<PurchaseBudget>();
+    public DbSet<PurchaseAward> PurchaseAwards => Set<PurchaseAward>();
+    public DbSet<SmartQuote.API.PurchaseOrdering.Domain.Model.Entities.OrderingOutboxMessage> OrderingOutbox => Set<SmartQuote.API.PurchaseOrdering.Domain.Model.Entities.OrderingOutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.ApplyPurchaseOrderingConfiguration();
         builder.ApplyDeliveryEvaluationConfiguration();
         builder.ApplyOrderingPolicyConfiguration();
+        builder.ApplyPurchaseAwardConfiguration();
         builder.UseSnakeCaseNamingConvention();
     }
 }

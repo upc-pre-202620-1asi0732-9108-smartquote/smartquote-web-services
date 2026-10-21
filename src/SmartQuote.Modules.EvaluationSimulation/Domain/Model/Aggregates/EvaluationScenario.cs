@@ -119,6 +119,6 @@ public class EvaluationScenario : AggregateRoot<EvaluationScenarioId>
                     criterion.Operator,
                     criterion.ExpectedValue,
                     criterion.UnitOfMeasure,
-                    criterion.Weight,
+                    criterion.Weight.ToString("F2", System.Globalization.CultureInfo.InvariantCulture),
                     criterion.DisplayOrder))));
 }

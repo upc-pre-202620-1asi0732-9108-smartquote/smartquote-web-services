@@ -33,5 +33,5 @@ public static class PurchaseOrderResourceFromViewAssembler
                 line.Description,
                 line.Quantity,
                 line.UnitOfMeasure,
-                line.UnitPrice)).ToList(), view.PolicyEvidence);
+                line.UnitPrice, line.SourceQuotationId, line.OriginalCurrency, line.OriginalUnitPrice)).ToList(), view.PolicyEvidence, view.AwardId);
 }

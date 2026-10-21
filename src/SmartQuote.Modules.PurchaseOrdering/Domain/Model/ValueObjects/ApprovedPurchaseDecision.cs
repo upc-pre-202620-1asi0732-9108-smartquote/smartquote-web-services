@@ -3,7 +3,7 @@ namespace SmartQuote.API.PurchaseOrdering.Domain.Model.ValueObjects;
 public record ApprovedPurchaseDecision(
     string SimulationRunId,
     string PurchaseRequestId,
-    string QuotationId,
+    string? QuotationId,
     SupplierSnapshot Supplier,
     string Currency,
     IReadOnlyList<ApprovedPurchaseLine> Lines,
@@ -16,4 +16,7 @@ public record ApprovedPurchaseLine(
     string Description,
     decimal Quantity,
     string UnitOfMeasure,
-    decimal UnitPrice);
+    decimal UnitPrice,
+    string? SourceQuotationId = null,
+    string? OriginalCurrency = null,
+    decimal? OriginalUnitPrice = null);

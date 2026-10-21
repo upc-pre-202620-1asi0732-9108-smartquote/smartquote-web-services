@@ -35,6 +35,13 @@ public static class QuotationIntakeModule
             services.AddScoped<IQuoteExtractionAgent, StubQuoteExtractionAgent>();
 
         services.AddScoped<QuoteExtractionService>();
+        services.AddOptions<QuotationExpiryOptions>().Bind(configuration.GetSection("QuotationExpiry"))
+            .Validate(o => o.LeadDays is > 0 and <= 365 && o.PollSeconds >= 5 && o.BatchSize is > 0 and <= 1000, "Invalid quotation expiry options.")
+            .Validate(o => { try { TimeZoneInfo.FindSystemTimeZoneById(o.TimeZone); return true; } catch { return false; } }, "Invalid quotation expiry timezone.")
+            .ValidateOnStart();
+        services.AddScoped<IQuotationExpiryStore, QuotationExpiryStore>();
+        services.AddScoped<QuotationExpiryService>();
+        services.AddHostedService<Infrastructure.Workers.QuotationExpiryWorker>();
         services.AddScoped<IVerifiedQuotationSnapshotProvider>(provider =>
             provider.GetRequiredService<QuoteExtractionService>());
 

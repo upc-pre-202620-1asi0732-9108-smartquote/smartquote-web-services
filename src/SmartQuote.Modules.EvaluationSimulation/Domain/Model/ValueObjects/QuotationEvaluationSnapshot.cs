@@ -18,6 +18,7 @@ public class QuotationEvaluationSnapshot
     public int DeliveryLeadTimeDays { get; private set; }
     public DateTimeOffset VerifiedAt { get; private set; }
     public DateTimeOffset CapturedAt { get; private set; }
+    public DateOnly? ValidUntil { get; private set; }
 
     public IReadOnlyList<QuotationLineSnapshotData> Lines => _lines.AsReadOnly();
 
@@ -36,7 +37,8 @@ public class QuotationEvaluationSnapshot
         DateTimeOffset capturedAt,
         Guid? supplierAccountId = null,
         string? supplierEligibilityStatus = null,
-        long supplierEligibilityVersion = 0)
+        long supplierEligibilityVersion = 0,
+        DateOnly? validUntil = null)
     {
         QuotationId = quotationId;
         Version = version;
@@ -50,6 +52,7 @@ public class QuotationEvaluationSnapshot
         DeliveryLeadTimeDays = deliveryLeadTimeDays;
         VerifiedAt = verifiedAt;
         CapturedAt = capturedAt;
+        ValidUntil = validUntil;
         _lines.AddRange(lines);
     }
 

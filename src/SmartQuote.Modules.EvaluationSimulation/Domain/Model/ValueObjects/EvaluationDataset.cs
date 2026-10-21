@@ -2,7 +2,7 @@
 
 public record EvaluationDataset(RequestEvaluationSnapshot Request, IReadOnlyList<QuotationEvaluationSnapshot> Quotations)
 {
-    public InputFingerprint CalculateFingerprint(ExchangeRateSnapshot? exchangeRate = null)
+    public InputFingerprint CalculateFingerprint(ExchangeRateSnapshot? exchangeRate = null, DateOnly? operationDate = null)
     {
         var fingerprint = InputFingerprint.FromParts(
             System.Text.Json.JsonSerializer.Serialize(new
@@ -22,6 +22,9 @@ public record EvaluationDataset(RequestEvaluationSnapshot Request, IReadOnlyList
         if (Quotations.Any(q => q.SupplierEligibilityStatus is not null))
             fingerprint = InputFingerprint.FromParts(fingerprint.Value, System.Text.Json.JsonSerializer.Serialize(Quotations
                 .OrderBy(q => q.QuotationId).Select(q => new { q.SupplierAccountId, q.SupplierEligibilityStatus, q.SupplierEligibilityVersion })));
+        if (operationDate.HasValue && Quotations.Any(q => q.ValidUntil.HasValue && q.ValidUntil < operationDate))
+            fingerprint = InputFingerprint.FromParts(fingerprint.Value, "expired", string.Join(',', Quotations
+                .Where(q => q.ValidUntil.HasValue && q.ValidUntil < operationDate).Select(q => q.QuotationId).Order()));
         return fingerprint;
     }
 }

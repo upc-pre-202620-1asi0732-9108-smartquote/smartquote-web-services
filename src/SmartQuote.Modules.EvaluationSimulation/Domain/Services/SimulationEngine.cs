@@ -10,12 +10,21 @@ namespace SmartQuote.Modules.EvaluationSimulation.Domain.Services;
 
 public class SimulationEngine
 {
-    public SimulationRun Run(EvaluationScenario scenario, EvaluationDataset dataset, ExchangeRateSnapshot? exchangeRate = null)
+    public SimulationRun Run(EvaluationScenario scenario, EvaluationDataset dataset, ExchangeRateSnapshot? exchangeRate = null, DateOnly? operationDate = null)
     {
-        var fingerprint = InputFingerprint.FromParts(dataset.CalculateFingerprint(exchangeRate).Value, scenario.CalculateDefinitionFingerprint().Value);
+        var fingerprint = InputFingerprint.FromParts(dataset.CalculateFingerprint(exchangeRate, operationDate).Value, scenario.CalculateDefinitionFingerprint().Value);
 
         var run = SimulationRun.Create(scenario.Id, scenario.Version, fingerprint, dataset.Request, dataset.Quotations, exchangeRate);
 
+        foreach (var evaluation in EvaluateCandidates(scenario.Criteria, dataset, exchangeRate, operationDate))
+            run.AddEvaluation(evaluation);
+        run.DefineRecommendation();
+        return run;
+    }
+
+    public IReadOnlyList<QuotationEvaluation> EvaluateCandidates(IReadOnlyList<EvaluationCriterion> criteria,
+        EvaluationDataset dataset, ExchangeRateSnapshot? exchangeRate, DateOnly? operationDate)
+    {
         var evaluations = new List<(QuotationEvaluation Evaluation, CriterionEvaluationInput Input)>();
 
         foreach (var quotationSnapshot in dataset.Quotations)
@@ -23,29 +32,29 @@ public class SimulationEngine
             var evaluation = QuotationEvaluation.Create(quotationSnapshot.QuotationId);
             var input = BuildCriterionInput(dataset.Request, quotationSnapshot, exchangeRate);
 
-            ApplyMandatoryCriteria(scenario, input, evaluation);
+            ApplyMandatoryCriteria(criteria, input, evaluation);
+
+            if (operationDate.HasValue && quotationSnapshot.ValidUntil.HasValue && quotationSnapshot.ValidUntil < operationDate)
+                evaluation.Exclude(new ExclusionReason(null, "QUOTATION_EXPIRED", "La vigencia comercial de la cotización ha vencido."));
 
             if (quotationSnapshot.SupplierEligibilityStatus != "Enabled" || quotationSnapshot.SupplierAccountId is null)
                 evaluation.Exclude(new ExclusionReason(null, "SUPPLIER_NOT_ENABLED",
                     $"El proveedor no está habilitado para nuevas compras (estado: {quotationSnapshot.SupplierEligibilityStatus ?? "sin registro"})."));
 
             evaluations.Add((evaluation, input));
-            run.AddEvaluation(evaluation);
         }
 
-        ScoreEligibleQuotations(scenario, evaluations);
+        ScoreEligibleQuotations(criteria, evaluations);
 
         foreach (var (evaluation, _) in evaluations)
             evaluation.CalculateTotalScore();
 
-        run.DefineRecommendation();
-
-        return run;
+        return evaluations.Select(e => e.Evaluation).ToList();
     }
 
-    private static void ApplyMandatoryCriteria(EvaluationScenario scenario, CriterionEvaluationInput input, QuotationEvaluation evaluation)
+    private static void ApplyMandatoryCriteria(IReadOnlyList<EvaluationCriterion> criteria, CriterionEvaluationInput input, QuotationEvaluation evaluation)
     {
-        foreach (var criterion in scenario.Criteria.Where(c => c.Mode == CriterionMode.Mandatory))
+        foreach (var criterion in criteria.Where(c => c.Mode == CriterionMode.Mandatory))
         {
             var result = criterion.Evaluate(input);
 
@@ -56,11 +65,11 @@ public class SimulationEngine
         }
     }
 
-    private static void ScoreEligibleQuotations(EvaluationScenario scenario, List<(QuotationEvaluation Evaluation, CriterionEvaluationInput Input)> evaluations)
+    private static void ScoreEligibleQuotations(IReadOnlyList<EvaluationCriterion> criteria, List<(QuotationEvaluation Evaluation, CriterionEvaluationInput Input)> evaluations)
     {
         var eligible = evaluations.Where(e => e.Evaluation.IsEligible).ToList();
 
-        foreach (var criterion in scenario.Criteria.Where(c => c.Mode == CriterionMode.Weighted))
+        foreach (var criterion in criteria.Where(c => c.Mode == CriterionMode.Weighted))
         {
             if (criterion.IsNumeric)
                 ScoreNumericCriterion(criterion, eligible);

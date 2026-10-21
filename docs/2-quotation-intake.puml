@@ -298,4 +298,52 @@ package "QuotationIntake.Application" {
 }
 QuoteExtractionService --> ISupplierRegistration : verified identity, not authorization
 
+package "QuotationIntake.Domain" {
+    class QuotationExpiryAlert <<Entity>> {
+        + Id: UUID
+        + QuotationId: UUID
+        + RequestId: UUID
+        + RecipientId: UUID
+        + SupplierName: string
+        + ValidUntil: DateOnly
+        + LeadDays: int
+        + CreatedAt: DateTimeOffset
+        + ReadAt: DateTimeOffset?
+        + ReassignedAt: DateTimeOffset?
+        + Create(...): QuotationExpiryAlert
+        + Transfer(recipient, now): void
+        + Read(actor, now): void
+    }
+}
+package "QuotationIntake.Application" {
+    class QuotationExpiryService {
+        + ScanAsync(): Task
+        + ListAsync(unreadOnly, page, pageSize): IReadOnlyList
+        + ReadAsync(id): Task
+    }
+    interface IQuotationExpiryStore <<Port>>
+    interface IAlertRequestReader <<Port>>
+}
+package "QuotationIntake.Infrastructure" {
+    class QuotationExpiryWorker <<BackgroundService>>
+    class QuotationExpiryStore <<EF Core Adapter>>
+}
+package "QuotationIntake.Interfaces" {
+    class QuotationExpiryAlertsController
+}
+QuotationExpiryAlertsController --> QuotationExpiryService
+QuotationExpiryWorker --> QuotationExpiryService
+QuotationExpiryService --> IQuotationExpiryStore
+QuotationExpiryService --> IAlertRequestReader
+QuotationExpiryStore ..|> IQuotationExpiryStore
+QuotationExpiryStore --> QuotationExpiryAlert
+QuotationExpiryAlert ..> PoultryQuote : quotation reference
+note bottom of QuotationExpiryAlert
+  US17: unique quotation + expiry + lead days.
+  Only active, unawarded requests with an analyst.
+  Reading/reassignment never changes offer validity.
+  Expiry is also enforced by evaluation/approval,
+  independently of this worker.
+end note
+
 @enduml

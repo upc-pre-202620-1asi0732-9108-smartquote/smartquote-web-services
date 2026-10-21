@@ -58,7 +58,8 @@ public class EvaluationInputAssembler
             capturedAt,
             suppliers.SingleOrDefault(s => s.TaxIdentifier == quotation.SupplierTaxIdentifier.Trim())?.SupplierAccountId,
             suppliers.SingleOrDefault(s => s.TaxIdentifier == quotation.SupplierTaxIdentifier.Trim())?.Status ?? "Unidentified",
-            suppliers.SingleOrDefault(s => s.TaxIdentifier == quotation.SupplierTaxIdentifier.Trim())?.Version ?? 0)).ToList();
+            suppliers.SingleOrDefault(s => s.TaxIdentifier == quotation.SupplierTaxIdentifier.Trim())?.Version ?? 0,
+            quotation.ValidUntil)).ToList();
 
         return new EvaluationDataset(requestSnapshot, quotationSnapshots);
     }

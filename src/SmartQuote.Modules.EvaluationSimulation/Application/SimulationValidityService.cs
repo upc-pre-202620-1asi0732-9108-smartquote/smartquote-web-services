@@ -11,7 +11,8 @@ public class SimulationValidityService(
     IPurchaseRequestSnapshotReader requestSnapshotReader,
     IVerifiedQuotationSnapshotReader quotationSnapshotReader,
     EvaluationInputAssembler inputAssembler,
-    ISupplierEligibilityReader supplierEligibility)
+    ISupplierEligibilityReader supplierEligibility,
+    TimeProvider clock)
 {
     public async Task EnsureCurrentAsync(SimulationRun simulationRun, CancellationToken cancellationToken = default)
     {
@@ -37,6 +38,9 @@ public class SimulationValidityService(
         var suppliers = await supplierEligibility.ReadAsync(quotationSnapshots.Select(q => q.SupplierTaxIdentifier.Trim()).Distinct().ToList(), cancellationToken);
         var dataset = inputAssembler.Assemble(requestSnapshot, quotationSnapshots, suppliers);
 
-        return InputFingerprint.FromParts(dataset.CalculateFingerprint(simulationRun.ExchangeRate).Value, scenario.CalculateDefinitionFingerprint().Value);
+        var today = DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime.AddHours(-5));
+        // The historical run remains readable, but a date-sensitive decision cannot be approved after expiry.
+        var fingerprint = InputFingerprint.FromParts(dataset.CalculateFingerprint(simulationRun.ExchangeRate, today).Value, scenario.CalculateDefinitionFingerprint().Value);
+        return simulationRun.Mode == "DistributedByItem" ? InputFingerprint.FromParts(fingerprint.Value, "DistributedByItem") : fingerprint;
     }
 }

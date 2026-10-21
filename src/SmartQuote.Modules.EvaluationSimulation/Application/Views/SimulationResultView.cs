@@ -9,7 +9,9 @@ public record SimulationResultView(
     bool IsCurrent,
     RecommendationView? Recommendation,
     ExchangeRateView? ExchangeRate,
-    IReadOnlyList<QuotationEvaluationView> Evaluations);
+    IReadOnlyList<QuotationEvaluationView> Evaluations,
+    string Mode = "SingleSupplier",
+    SmartQuote.Modules.EvaluationSimulation.Domain.Model.ValueObjects.DistributedSimulationResult? Distribution = null);
 
 public record QuotationEvaluationView(
     string QuotationId,

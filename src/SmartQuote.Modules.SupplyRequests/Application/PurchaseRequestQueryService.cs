@@ -127,7 +127,7 @@ public class PurchaseRequestQueryService(IPurchaseRequestRepository repository, 
                 requirement.Operator.ToString(),
                 requirement.ExpectedValue,
                 requirement.UnitOfMeasure,
-                requirement.IsMandatory)).ToList())).ToList(), request.TechnicalRevision);
+                requirement.IsMandatory)).ToList())).ToList(), request.TechnicalRevision, request.AssignedAnalystId);
 
     public async Task<PagedResult<PurchaseRequestView>> ListAssignedAsync(RequestStatus? status, int page, int pageSize, CancellationToken ct)
     {

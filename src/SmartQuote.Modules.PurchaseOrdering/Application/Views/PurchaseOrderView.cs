@@ -5,7 +5,7 @@ public record PurchaseOrderView(
     string OrderNumber,
     string SimulationRunId,
     string PurchaseRequestId,
-    string QuotationId,
+    string? QuotationId,
     string InputFingerprint,
     string SupplierId,
     string SupplierBusinessName,
@@ -20,7 +20,8 @@ public record PurchaseOrderView(
     decimal Total,
     DateTimeOffset CreatedAt,
     IReadOnlyList<PurchaseOrderLineView> Lines,
-    SmartQuote.API.PurchaseOrdering.Domain.Model.ValueObjects.ApprovalPolicyEvidence? PolicyEvidence = null);
+    SmartQuote.API.PurchaseOrdering.Domain.Model.ValueObjects.ApprovalPolicyEvidence? PolicyEvidence = null,
+    Guid? AwardId = null);
 
 public record PurchaseOrderLineView(
     Guid LineId,
@@ -30,4 +31,4 @@ public record PurchaseOrderLineView(
     string Description,
     decimal Quantity,
     string UnitOfMeasure,
-    decimal UnitPrice);
+    decimal UnitPrice, string? SourceQuotationId = null, string? OriginalCurrency = null, decimal? OriginalUnitPrice = null);

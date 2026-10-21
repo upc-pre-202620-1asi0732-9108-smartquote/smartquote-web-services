@@ -71,6 +71,58 @@ namespace SmartQuote.Modules.EvaluationSimulation.Infrastructure.Persistence.EFC
                     b.ToTable("evaluation_scenarios", "evaluation_simulation");
                 });
 
+            modelBuilder.Entity("SmartQuote.Modules.EvaluationSimulation.Domain.Model.Aggregates.SensitivityAnalysis", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<int>("CriteriaVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("criteria_version");
+
+                    b.Property<string>("ExchangeRate")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("exchange_rate");
+
+                    b.Property<string>("InputFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("input_fingerprint");
+
+                    b.Property<string>("Inputs")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("inputs");
+
+                    b.Property<string>("RequestId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("request_id");
+
+                    b.Property<Guid>("ScenarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("scenario_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_sensitivity_analyses");
+
+                    b.HasIndex("RequestId", "CreatedAt")
+                        .HasDatabaseName("ix_sensitivity_analyses_request_id_created_at");
+
+                    b.ToTable("sensitivity_analyses", "evaluation_simulation");
+                });
+
             modelBuilder.Entity("SmartQuote.Modules.EvaluationSimulation.Domain.Model.Aggregates.SimulationRun", b =>
                 {
                     b.Property<Guid>("Id")
@@ -81,6 +133,10 @@ namespace SmartQuote.Modules.EvaluationSimulation.Infrastructure.Persistence.EFC
                         .HasColumnType("integer")
                         .HasColumnName("criteria_version");
 
+                    b.Property<string>("Distribution")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("distribution");
+
                     b.Property<DateTimeOffset>("ExecutedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("executed_at");
@@ -89,6 +145,14 @@ namespace SmartQuote.Modules.EvaluationSimulation.Infrastructure.Persistence.EFC
                         .IsRequired()
                         .HasColumnType("char(64)")
                         .HasColumnName("input_fingerprint");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasDefaultValue("SingleSupplier")
+                        .HasColumnName("mode");
 
                     b.Property<Guid>("ScenarioId")
                         .HasColumnType("uuid")
@@ -185,6 +249,53 @@ namespace SmartQuote.Modules.EvaluationSimulation.Infrastructure.Persistence.EFC
                         });
 
                     b.Navigation("Criteria");
+                });
+
+            modelBuilder.Entity("SmartQuote.Modules.EvaluationSimulation.Domain.Model.Aggregates.SensitivityAnalysis", b =>
+                {
+                    b.OwnsMany("SmartQuote.Modules.EvaluationSimulation.Domain.Model.Aggregates.SensitivityConfiguration", "Configurations", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<string>("RecommendedQuotationId")
+                                .HasColumnType("text")
+                                .HasColumnName("recommended_quotation_id");
+
+                            b1.Property<string>("Results")
+                                .IsRequired()
+                                .HasColumnType("jsonb")
+                                .HasColumnName("results");
+
+                            b1.Property<string>("TiedWinnerIds")
+                                .IsRequired()
+                                .HasColumnType("jsonb")
+                                .HasColumnName("tied_winner_ids");
+
+                            b1.Property<string>("Weights")
+                                .IsRequired()
+                                .HasColumnType("jsonb")
+                                .HasColumnName("weights");
+
+                            b1.Property<Guid>("analysis_id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("analysis_id");
+
+                            b1.HasKey("Id")
+                                .HasName("pk_sensitivity_configurations");
+
+                            b1.HasIndex("analysis_id")
+                                .HasDatabaseName("ix_sensitivity_configurations_analysis_id");
+
+                            b1.ToTable("sensitivity_configurations", "evaluation_simulation");
+
+                            b1.WithOwner()
+                                .HasForeignKey("analysis_id")
+                                .HasConstraintName("fk_sensitivity_configurations_sensitivity_analyses_analysis_id");
+                        });
+
+                    b.Navigation("Configurations");
                 });
 
             modelBuilder.Entity("SmartQuote.Modules.EvaluationSimulation.Domain.Model.Aggregates.SimulationRun", b =>
@@ -445,6 +556,10 @@ namespace SmartQuote.Modules.EvaluationSimulation.Infrastructure.Persistence.EFC
                                 .HasMaxLength(20)
                                 .HasColumnType("character varying(20)")
                                 .HasColumnName("supplier_tax_identifier");
+
+                            b1.Property<DateOnly?>("ValidUntil")
+                                .HasColumnType("date")
+                                .HasColumnName("valid_until");
 
                             b1.Property<DateTimeOffset>("VerifiedAt")
                                 .HasColumnType("timestamp with time zone")

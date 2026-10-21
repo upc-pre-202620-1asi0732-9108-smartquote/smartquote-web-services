@@ -74,6 +74,111 @@ namespace SmartQuote.Modules.PurchaseOrdering.Infrastructure.Persistence.EFC.Mig
                     b.ToTable("delivery_evaluations", "purchase_ordering");
                 });
 
+            modelBuilder.Entity("SmartQuote.API.PurchaseOrdering.Domain.Model.Aggregates.PurchaseAward", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<Guid>("ApprovedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("approved_by");
+
+                    b.Property<decimal?>("BudgetAmountPen")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)")
+                        .HasColumnName("budget_amount_pen");
+
+                    b.Property<decimal?>("BudgetMarginPen")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)")
+                        .HasColumnName("budget_margin_pen");
+
+                    b.Property<long?>("BudgetVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("budget_version");
+
+                    b.Property<decimal?>("ExchangeRate")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("numeric(18,8)")
+                        .HasColumnName("exchange_rate");
+
+                    b.Property<string>("ExchangeRateSource")
+                        .HasColumnType("text")
+                        .HasColumnName("exchange_rate_source");
+
+                    b.Property<string>("ExchangeRateType")
+                        .HasColumnType("text")
+                        .HasColumnName("exchange_rate_type");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("InputFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("input_fingerprint");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("mode");
+
+                    b.Property<DateOnly?>("RatePublishedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("rate_published_on");
+
+                    b.Property<DateTimeOffset?>("RateRetrievedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("rate_retrieved_at");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("request_id");
+
+                    b.Property<Guid>("SimulationRunId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("simulation_run_id");
+
+                    b.Property<decimal>("TotalPen")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)")
+                        .HasColumnName("total_pen");
+
+                    b.HasKey("Id")
+                        .HasName("pk_purchase_awards");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_purchase_awards_idempotency_key");
+
+                    b.HasIndex("RequestId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_purchase_awards_request_id");
+
+                    b.HasIndex("SimulationRunId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_purchase_awards_simulation_run_id");
+
+                    b.ToTable("purchase_awards", "purchase_ordering");
+                });
+
             modelBuilder.Entity("SmartQuote.API.PurchaseOrdering.Domain.Model.Aggregates.PurchaseBudget", b =>
                 {
                     b.Property<Guid>("RequestId")
@@ -100,6 +205,14 @@ namespace SmartQuote.Modules.PurchaseOrdering.Infrastructure.Persistence.EFC.Mig
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<Guid?>("AwardId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("award_id");
+
+                    b.Property<Guid?>("AwardSupplierId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("award_supplier_id");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -132,6 +245,10 @@ namespace SmartQuote.Modules.PurchaseOrdering.Infrastructure.Persistence.EFC.Mig
                     b.HasIndex("OrderNumber")
                         .IsUnique()
                         .HasDatabaseName("ix_purchase_orders_order_number");
+
+                    b.HasIndex("AwardId", "AwardSupplierId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_purchase_orders_award_id_award_supplier_id");
 
                     b.ToTable("purchase_orders", "purchase_ordering");
                 });
@@ -177,6 +294,109 @@ namespace SmartQuote.Modules.PurchaseOrdering.Infrastructure.Persistence.EFC.Mig
                         .HasDatabaseName("ix_supplier_accounts_tax_identifier");
 
                     b.ToTable("supplier_accounts", "purchase_ordering");
+                });
+
+            modelBuilder.Entity("SmartQuote.API.PurchaseOrdering.Domain.Model.Entities.OrderingOutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("event_type");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("payload");
+
+                    b.Property<DateTimeOffset?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("processed_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_ordering_outbox");
+
+                    b.HasIndex("ProcessedAt")
+                        .HasDatabaseName("ix_ordering_outbox_processed_at");
+
+                    b.ToTable("ordering_outbox", "purchase_ordering");
+                });
+
+            modelBuilder.Entity("SmartQuote.API.PurchaseOrdering.Domain.Model.Aggregates.PurchaseAward", b =>
+                {
+                    b.OwnsMany("SmartQuote.API.PurchaseOrdering.Domain.Model.Aggregates.AwardAllocation", "Allocations", b1 =>
+                        {
+                            b1.Property<Guid>("award_id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("award_id");
+
+                            b1.Property<Guid>("RequestedItemId")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("uuid")
+                                .HasColumnName("requested_item_id");
+
+                            b1.Property<decimal>("AmountPen")
+                                .HasPrecision(28, 12)
+                                .HasColumnType("numeric(28,12)")
+                                .HasColumnName("amount_pen");
+
+                            b1.Property<string>("OriginalCurrency")
+                                .IsRequired()
+                                .HasColumnType("text")
+                                .HasColumnName("original_currency");
+
+                            b1.Property<decimal>("OriginalUnitPrice")
+                                .HasPrecision(18, 4)
+                                .HasColumnType("numeric(18,4)")
+                                .HasColumnName("original_unit_price");
+
+                            b1.Property<decimal>("Quantity")
+                                .HasPrecision(18, 4)
+                                .HasColumnType("numeric(18,4)")
+                                .HasColumnName("quantity");
+
+                            b1.Property<Guid>("QuotationId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("quotation_id");
+
+                            b1.Property<Guid>("QuotationLineId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("quotation_line_id");
+
+                            b1.Property<Guid>("SupplierId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("supplier_id");
+
+                            b1.Property<string>("UnitOfMeasure")
+                                .IsRequired()
+                                .HasColumnType("text")
+                                .HasColumnName("unit_of_measure");
+
+                            b1.Property<decimal>("UnitPricePen")
+                                .HasPrecision(28, 12)
+                                .HasColumnType("numeric(28,12)")
+                                .HasColumnName("unit_price_pen");
+
+                            b1.HasKey("award_id", "RequestedItemId")
+                                .HasName("pk_purchase_award_allocations");
+
+                            b1.ToTable("purchase_award_allocations", "purchase_ordering");
+
+                            b1.WithOwner()
+                                .HasForeignKey("award_id")
+                                .HasConstraintName("fk_purchase_award_allocations_purchase_awards_award_id");
+                        });
+
+                    b.Navigation("Allocations");
                 });
 
             modelBuilder.Entity("SmartQuote.API.PurchaseOrdering.Domain.Model.Aggregates.PurchaseBudget", b =>
@@ -232,6 +452,12 @@ namespace SmartQuote.Modules.PurchaseOrdering.Infrastructure.Persistence.EFC.Mig
 
             modelBuilder.Entity("SmartQuote.API.PurchaseOrdering.Domain.Model.Aggregates.PurchaseOrder", b =>
                 {
+                    b.HasOne("SmartQuote.API.PurchaseOrdering.Domain.Model.Aggregates.PurchaseAward", null)
+                        .WithMany()
+                        .HasForeignKey("AwardId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_purchase_orders_purchase_awards_award_id");
+
                     b.OwnsOne("SmartQuote.API.PurchaseOrdering.Domain.Model.ValueObjects.Approval", "Approval", b1 =>
                         {
                             b1.Property<Guid>("Id")
@@ -372,7 +598,7 @@ namespace SmartQuote.Modules.PurchaseOrdering.Infrastructure.Persistence.EFC.Mig
                                 .HasColumnType("uuid")
                                 .HasColumnName("source_purchase_request_id");
 
-                            b1.Property<Guid>("QuotationId")
+                            b1.Property<Guid?>("QuotationId")
                                 .HasColumnType("uuid")
                                 .HasColumnName("source_quotation_id");
 
@@ -384,11 +610,9 @@ namespace SmartQuote.Modules.PurchaseOrdering.Infrastructure.Persistence.EFC.Mig
                                 .HasName("pk_purchase_orders");
 
                             b1.HasIndex("PurchaseRequestId")
-                                .IsUnique()
                                 .HasDatabaseName("ix_purchase_orders_source_purchase_request_id");
 
                             b1.HasIndex("SimulationRunId")
-                                .IsUnique()
                                 .HasDatabaseName("ix_purchase_orders_source_simulation_run_id");
 
                             b1.ToTable("purchase_orders", "purchase_ordering");
@@ -448,9 +672,21 @@ namespace SmartQuote.Modules.PurchaseOrdering.Infrastructure.Persistence.EFC.Mig
                                 .HasColumnType("integer")
                                 .HasColumnName("line_number");
 
+                            b1.Property<string>("OriginalCurrency")
+                                .HasColumnType("text")
+                                .HasColumnName("original_currency");
+
+                            b1.Property<decimal?>("OriginalUnitPrice")
+                                .HasColumnType("numeric(18,4)")
+                                .HasColumnName("original_unit_price");
+
                             b1.Property<decimal>("Quantity")
                                 .HasColumnType("numeric(18,4)")
                                 .HasColumnName("quantity");
+
+                            b1.Property<string>("SourceQuotationId")
+                                .HasColumnType("text")
+                                .HasColumnName("source_quotation_id");
 
                             b1.Property<Guid?>("SourceQuotationLineId")
                                 .HasColumnType("uuid")
@@ -467,7 +703,7 @@ namespace SmartQuote.Modules.PurchaseOrdering.Infrastructure.Persistence.EFC.Mig
                                 .HasColumnName("unit_of_measure");
 
                             b1.Property<decimal>("UnitPrice")
-                                .HasColumnType("numeric(18,4)")
+                                .HasColumnType("numeric(28,12)")
                                 .HasColumnName("unit_price");
 
                             b1.Property<Guid>("purchase_order_id")

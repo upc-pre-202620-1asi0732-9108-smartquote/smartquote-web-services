@@ -15,11 +15,14 @@ public class PurchaseOrderRepository(PurchaseOrderingDbContext context)
             .Include(order => order.Lines)
             .FirstOrDefaultAsync(order => order.Id == purchaseOrderId, cancellationToken);
 
-    public async Task<PurchaseOrder?> FindBySimulationAsync(string simulationRunId, CancellationToken cancellationToken = default) =>
-        await Context.PurchaseOrders
+    public async Task<PurchaseOrder?> FindBySimulationAsync(string simulationRunId, CancellationToken cancellationToken = default)
+    {
+        var matches = await Context.PurchaseOrders
             .Include(order => order.Lines)
             .Where(order => order.SourceDecision.SimulationRunId == simulationRunId)
-            .FirstOrDefaultAsync(cancellationToken);
+            .Take(2).ToListAsync(cancellationToken);
+        return Single(matches);
+    }
 
     public async Task<PurchaseOrder?> FindByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken = default) =>
         await Context.PurchaseOrders
@@ -27,9 +30,18 @@ public class PurchaseOrderRepository(PurchaseOrderingDbContext context)
             .Where(order => order.Approval.IdempotencyKey == idempotencyKey)
             .FirstOrDefaultAsync(cancellationToken);
 
-    public async Task<PurchaseOrder?> FindByRequestAsync(string requestId, CancellationToken cancellationToken = default) =>
-        await Context.PurchaseOrders
+    public async Task<PurchaseOrder?> FindByRequestAsync(string requestId, CancellationToken cancellationToken = default)
+    {
+        var matches = await Context.PurchaseOrders
             .Include(order => order.Lines)
             .Where(order => order.SourceDecision.PurchaseRequestId == requestId)
-            .FirstOrDefaultAsync(cancellationToken);
+            .Take(2).ToListAsync(cancellationToken);
+        return Single(matches);
+    }
+    private static PurchaseOrder? Single(IReadOnlyList<PurchaseOrder> orders)
+    {
+        if (orders.Count > 1) throw new SmartQuote.API.Shared.Domain.ConflictException("This acquisition contains multiple orders; consult purchase-awards.",
+            "multiple_purchase_orders", new Dictionary<string, object?> { ["awardId"] = orders[0].AwardId });
+        return orders.SingleOrDefault();
+    }
 }

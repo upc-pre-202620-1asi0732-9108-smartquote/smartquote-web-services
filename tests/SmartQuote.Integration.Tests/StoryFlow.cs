@@ -24,17 +24,20 @@ public sealed class StoryFactory : SmartQuoteFactory
     public string SupplierTaxIdentifier { get; } = "20" + Random.Shared.Next(100000000, 999999999).ToString();
     public TimeProvider? Clock { get; set; }
     public bool EnableRecurringWorker { get; set; }
+    public Action<IServiceCollection>? Overrides { get; set; }
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         base.ConfigureWebHost(builder);
         builder.ConfigureTestServices(services =>
         {
             services.Configure<SmartQuote.API.SupplyRequests.Infrastructure.Recurrence.RecurringRequestsOptions>(o => { o.Enabled = EnableRecurringWorker; o.PollSeconds = 5; });
+            services.Configure<SmartQuote.Modules.QuotationIntake.Application.QuotationExpiryOptions>(o => o.Enabled = false);
             if (Clock is not null) { services.RemoveAll<TimeProvider>(); services.AddSingleton(Clock); }
             services.RemoveAll<IQuoteExtractionAgent>();
             services.AddSingleton<IQuoteExtractionAgent>(new EvidenceExtractionAgent(SupplierTaxIdentifier));
             services.RemoveAll<IExchangeRateProvider>();
             services.AddSingleton<IExchangeRateProvider>(ExchangeRate);
+            Overrides?.Invoke(services);
         });
     }
 }
@@ -67,17 +70,36 @@ public sealed class EvidenceExtractionAgent(string taxIdentifier) : IQuoteExtrac
         var currency = usd ? "USD" : "PEN";
         var validity = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30));
         var supplier = "Supplier " + document.FileName;
+        var deliveryDays = document.FileName.Contains("fast") ? 1 : 3;
+        if (document.FileName.Contains("multi"))
+        {
+            var second = document.FileName.Contains("other");
+            var tax = second ? (long.Parse(taxIdentifier) + 1).ToString() : taxIdentifier;
+            var lines = request.Items.Select((item, i) => new ExtractedLineResult(item.Description,
+                document.FileName.Contains("short") && i == 1 ? item.Quantity / 2 : item.Quantity * 2, item.UnitOfMeasure,
+                usd ? (i == 0 ? 1m : 4m) : second ? (i == 0 ? 5m : 2m) : (i == 0 ? 3m : 10m),
+                item.Requirements.Select(r => new ExtractedSpecificationResult(r.Name, r.ExpectedValue, r.UnitOfMeasure)).ToList())).ToList();
+            var evidence = new List<ExtractedFieldResult> { Field("supplier.businessName", supplier), Field("supplier.taxIdentifier", tax),
+                Field("validUntil", validity.ToString("yyyy-MM-dd")), Field("currency", currency), Field("deliveryLeadTimeDays", "3") };
+            for (var i = 0; i < lines.Count; i++)
+            {
+                var line = lines[i]; evidence.AddRange([Field($"lines[{i}].description", line.Description!), Field($"lines[{i}].quantity", line.Quantity!.Value.ToString(CultureInfo.InvariantCulture)),
+                    Field($"lines[{i}].unitOfMeasure", line.UnitOfMeasure!), Field($"lines[{i}].unitPrice", line.UnitPrice!.Value.ToString(CultureInfo.InvariantCulture))]);
+                for (var j = 0; j < line.Specifications.Count; j++) evidence.Add(Field($"lines[{i}].specifications[{j}].value", line.Specifications[j].Value));
+            }
+            return Task.FromResult(new ExtractionResult(supplier, tax, validity, currency, 3, lines, evidence));
+        }
         var fields = new List<ExtractedFieldResult>
         {
             Field("supplier.businessName", supplier), Field("supplier.taxIdentifier", taxIdentifier),
             Field("validUntil", validity.ToString("yyyy-MM-dd")), Field("currency", currency),
-            Field("deliveryLeadTimeDays", "3"), Field("lines[0].description", "Alimento balanceado"),
+            Field("deliveryLeadTimeDays", deliveryDays.ToString()), Field("lines[0].description", "Alimento balanceado"),
             Field("lines[0].quantity", "1000"), Field("lines[0].unitOfMeasure", "kg"),
             new("lines[0].unitPrice", missing ? null : price.ToString(CultureInfo.InvariantCulture),
                 low ? 0.3m : 1m, 1, "Unit price in controlled extraction fixture", !missing),
             Field("lines[0].specifications[0].value", nonCompliant ? "18" : "21")
         };
-        return Task.FromResult(new ExtractionResult(supplier, taxIdentifier, validity, currency, 3,
+        return Task.FromResult(new ExtractionResult(supplier, taxIdentifier, validity, currency, deliveryDays,
             [new ExtractedLineResult("Alimento balanceado", 1000m, "kg", missing ? null : price,
                 [new ExtractedSpecificationResult("Proteína cruda", nonCompliant ? "18" : "21", "%")])], fields));
     }
@@ -96,10 +118,11 @@ public sealed class StoryFlow : IDisposable
     public JsonElement Request { get; private set; }
     private readonly bool _enableSuppliers;
     public Guid RequestId => Request.GetProperty("requestId").GetGuid();
-    public StoryFlow(TimeProvider? clock = null, bool enableRecurringWorker = false, bool enableSuppliers = true)
+    public StoryFlow(TimeProvider? clock = null, bool enableRecurringWorker = false, bool enableSuppliers = true, Action<IServiceCollection>? overrides = null)
     {
         Factory.Clock = clock;
         Factory.EnableRecurringWorker = enableRecurringWorker;
+        Factory.Overrides = overrides;
         _enableSuppliers = enableSuppliers;
         Production = Client("ProductionSpecialist", ProductionId);
         Analyst = Client("PurchaseAnalyst", AnalystId);
@@ -117,9 +140,9 @@ public sealed class StoryFlow : IDisposable
         items = new[] { new { description = "Alimento balanceado", quantity, unitOfMeasure = "kg",
             requirements = new[] { new { name = "Proteína mínima", @operator = "GreaterThanOrEqual", expectedValue = "20", unitOfMeasure = "%", isMandatory = mandatory } } } }
     };
-    public async Task Create(bool collecting = false)
+    public async Task Create(bool collecting = false, object? payload = null)
     {
-        Request = await Json(await Production.PostAsJsonAsync("/api/v1/purchase-requests", Payload()), HttpStatusCode.Created);
+        Request = await Json(await Production.PostAsJsonAsync("/api/v1/purchase-requests", payload ?? Payload()), HttpStatusCode.Created);
         if (collecting) { await Status("UnderReview"); await Status("QuotationCollection"); }
     }
     public async Task Status(string status)
@@ -151,7 +174,7 @@ public sealed class StoryFlow : IDisposable
             using var response = await Analyst.PostAsJsonAsync($"/api/v1/quotations/{id}/confirm", new
             {
                 expectedVersion = quote.GetProperty("version").GetInt64(),
-                lineMappings = quote.GetProperty("lines").EnumerateArray().Select(line => new { lineId = line.GetProperty("lineId").GetGuid(), requestedItemId = Request.GetProperty("items")[0].GetProperty("itemId").GetGuid().ToString() })
+                lineMappings = quote.GetProperty("lines").EnumerateArray().Select((line, i) => new { lineId = line.GetProperty("lineId").GetGuid(), requestedItemId = Request.GetProperty("items")[i].GetProperty("itemId").GetGuid().ToString() })
             });
             Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
             quote = await Json(await Analyst.GetAsync($"/api/v1/quotations/{id}"));
