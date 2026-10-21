@@ -35,6 +35,9 @@ public class SimulationApplicationService(
 
         var quotationSnapshots = await quotationSnapshotReader.GetCurrentForRequestAsync(scenario.RequestId, cancellationToken);
 
+        if (scenario.TechnicalRevision != requestSnapshot.TechnicalRevision)
+            throw new DomainException("The technical specification changed. Create an updated scenario version before running another simulation.");
+
         var dataset = inputAssembler.Assemble(requestSnapshot, quotationSnapshots);
 
         var currencies = quotationSnapshots

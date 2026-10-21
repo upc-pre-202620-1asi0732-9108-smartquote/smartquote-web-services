@@ -33,7 +33,7 @@ public class EvaluationInputAssembler
                     requirement.ExpectedValue,
                     requirement.UnitOfMeasure,
                     requirement.IsMandatory)).ToList())).ToList(),
-            capturedAt);
+            capturedAt, request.TechnicalRevision);
 
         var quotationSnapshots = quotations.Select(quotation => new QuotationEvaluationSnapshot(
             quotation.QuotationId,

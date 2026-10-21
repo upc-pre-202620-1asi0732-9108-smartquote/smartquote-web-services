@@ -109,3 +109,7 @@ US13: `GET /api/v1/suppliers/{taxIdentifier}/performance` devuelve los promedios
 
 - Diagramas de clases PlantUML: `docs/1-supply-requests.puml`, `docs/2-quotation-intake.puml`, `docs/3-evaluation-simulation.puml`, `docs/4-purchase-ordering.puml` y `docs/5-identity-access.puml`.
 - Modelo relacional: `docs/database-schema-documentation.md`.
+
+## Aclaraciones, recurrencias y asignación
+
+US15, US16 y US22: [endpoints, ejemplos, migraciones y pruebas](docs/us15-us16-us22-api.md). Las solicitudes recurrentes se generan como borradores privados y requieren confirmación del especialista; nunca se envían ni generan órdenes automáticamente. Reinicie con las migraciones aplicadas para utilizar las rutas nuevas.

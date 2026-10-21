@@ -7,7 +7,8 @@ public record PurchaseRequestSnapshot(
     string RequesterId,
     DateOnly RequiredDate,
     string Priority,
-    IReadOnlyList<RequestedItemSnapshot> Items);
+    IReadOnlyList<RequestedItemSnapshot> Items,
+    long TechnicalRevision = 0);
 
 public record RequestedItemSnapshot(
     string ItemId,

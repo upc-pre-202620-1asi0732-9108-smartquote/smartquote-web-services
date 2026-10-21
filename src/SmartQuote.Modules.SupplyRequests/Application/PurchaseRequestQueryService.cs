@@ -71,6 +71,9 @@ public class PurchaseRequestQueryService(IPurchaseRequestRepository repository, 
 
     private void EnsureCanRead(PurchaseRequest request)
     {
+        if (request.Status == RequestStatus.Draft &&
+            (!currentUser.IsInRole(SmartQuoteRoles.ProductionSpecialist) || request.RequesterId.Value != currentUser.UserId))
+            throw new UnauthorizedAccessException("Draft requests are private to their specialist.");
         if (currentUser.IsInRole(SmartQuoteRoles.ProductionSpecialist) && request.RequesterId.Value != currentUser.UserId)
             throw new UnauthorizedAccessException("Production specialists may only access their own purchase requests.");
     }
@@ -103,7 +106,7 @@ public class PurchaseRequestQueryService(IPurchaseRequestRepository repository, 
             attachment.FileName,
             attachment.ContentType,
             attachment.UploadedBy,
-            attachment.UploadedAt)).ToList());
+            attachment.UploadedAt)).ToList(), request.AssignedAnalystId, request.ScheduleOccurrenceId, request.TechnicalRevision);
 
     private static PurchaseRequestSnapshot ToSnapshot(PurchaseRequest request) => new(
         request.Id.ToString(),
@@ -124,7 +127,15 @@ public class PurchaseRequestQueryService(IPurchaseRequestRepository repository, 
                 requirement.Operator.ToString(),
                 requirement.ExpectedValue,
                 requirement.UnitOfMeasure,
-                requirement.IsMandatory)).ToList())).ToList());
+                requirement.IsMandatory)).ToList())).ToList(), request.TechnicalRevision);
+
+    public async Task<PagedResult<PurchaseRequestView>> ListAssignedAsync(RequestStatus? status, int page, int pageSize, CancellationToken ct)
+    {
+        if (!currentUser.IsInRole(SmartQuoteRoles.PurchaseAnalyst)) throw new UnauthorizedAccessException();
+        if (page < 1 || pageSize is < 1 or > 100) throw new ArgumentException("Invalid pagination.");
+        var result = await repository.ListAssignedAsync(currentUser.UserId, status, page, pageSize, ct);
+        return new(result.Items.Select(ToView).ToList(), page, pageSize, result.TotalItems);
+    }
 
     private static string ResolveNextResponsibleArea(RequestStatus status) => status switch
     {

@@ -18,6 +18,8 @@ package "Shared (generic)" #F2F2F2 {
 }
 
 package "SupplyRequests.Interfaces" #EADCF8 {
+    class RequestCollaborationController <<ASP.NET Core Controller>>
+    class RecurringRequestsController <<ASP.NET Core Controller>>
     class PurchaseRequestsController <<ASP.NET Core Controller>> {
         + Register(request): ActionResult
         + GetById(requestId): ActionResult
@@ -27,6 +29,26 @@ package "SupplyRequests.Interfaces" #EADCF8 {
 }
 
 package "SupplyRequests.Application" #DCEEFF {
+    class RequestCollaborationService <<Application Service>> {
+        + AssignAsync(requestId, analystId, reason, version)
+        + RegisterAsync(requestId, itemId, requirementId, specialistId, question, version)
+        + RespondAsync(id, answer, version)
+        + ReviseAsync(id, replacement, reason, clarificationVersion, requestVersion)
+    }
+    class RecurringRequestsService <<Application Service>> {
+        + CreateAsync(startDate, intervalDays, offsetDays, timeZoneId, template)
+        + EditDraftAsync(id, command, version)
+        + SubmitAsync(id, version)
+        + PauseAsync(id, version)
+    }
+    class RecurringOccurrenceProcessor <<System Use Case>> {
+        + ProcessAsync(scheduleId, maxOccurrences): int
+    }
+    interface ISupplyWorkflowStore <<Port>>
+    interface IScheduleLease <<Transactional Port>>
+    interface IRequestUserDirectory <<Port>> {
+        + IsActiveInRoleAsync(userId, role): bool
+    }
     class PurchaseRequestCommandService <<Application Service>> {
         + Register(command): PurchaseRequestId
         + AddAttachment(command): void
@@ -56,6 +78,7 @@ package "SupplyRequests.Application" #DCEEFF {
     class PurchaseRequestSnapshot <<Immutable DTO>> {
         + RequestId: string
         + Version: long
+        + TechnicalRevision: long
         + Status: string
         + RequesterId: string
         + RequiredDate: DateOnly
@@ -76,11 +99,84 @@ package "SupplyRequests.Domain" #DFF2E1 {
         - Priority: RequestPriority
         - Status: RequestStatus
         - Version: long
+        - TechnicalRevision: long
+        - AssignedAnalystId: UUID?
+        - ScheduleOccurrenceId: UUID?
         - CreatedAt: DateTimeOffset
         + Create(requesterId, requiredDate, priority): PurchaseRequest
         + AddItem(item): void
         + AddAttachment(attachment): void
         + ChangeStatus(nextStatus, changedBy, reason): void
+        + AssignAnalyst(analystId, actorId, reason, now): void
+        + ReviseRequirement(clarificationId, itemId, requirementId, replacement, actorId, reason, now): void
+        + CreateDraft(requesterId, requiredDate, priority, items, occurrenceId, now): PurchaseRequest
+        + UpdateDraft(requiredDate, priority, items, now): void
+        + Submit(localToday, now): void
+    }
+
+    class TechnicalClarification <<Aggregate Root>> {
+        + Id: UUID
+        + RequestId: PurchaseRequestId
+        + ItemId: UUID
+        + RequirementId: UUID
+        + AuthorId: UUID
+        + SpecialistId: UUID
+        + Question: string
+        + Answer: string?
+        + AnsweredBy: UUID?
+        + AnsweredAt: DateTimeOffset?
+        + Status: string
+        + CreatedAt: DateTimeOffset
+        + NoticeReadAt: DateTimeOffset?
+        + SourceTechnicalRevision: long
+        + Version: long
+        + Respond(answer, actorId, now)
+        + MarkRead(now)
+        + MarkRevisionApplied()
+    }
+    class RequestAssignmentEntry <<Immutable History>> {
+        + PreviousAnalystId: UUID?
+        + AnalystId: UUID
+        + AssignedBy: UUID
+        + AssignedAt: DateTimeOffset
+        + Reason: string?
+    }
+    class RequirementRevision <<Immutable History>> {
+        + ClarificationId: UUID
+        + RequirementId: UUID
+        + TechnicalRevision: long
+        + Previous: RequirementDefinition
+        + Current: RequirementDefinition
+        + ChangedBy: UUID
+        + ChangedAt: DateTimeOffset
+        + Reason: string
+    }
+    class RequirementDefinition <<Value Object>>
+    class RecurringRequestSchedule <<Aggregate Root>> {
+        + Id: UUID
+        + OwnerId: UUID
+        + StartDate: DateOnly
+        + IntervalDays: int
+        + RequiredDateOffsetDays: int
+        + TimeZoneId: string
+        + Priority: RequestPriority
+        + IsActive: bool
+        + NextOccurrenceDate: DateOnly
+        + NextOccurrenceAt: DateTimeOffset
+        + CreatedAt: DateTimeOffset
+        + PausedAt: DateTimeOffset?
+        + Version: long
+        + RecordOccurrence(occurrenceId, requestId, now)
+        + Pause(now)
+    }
+    class ScheduleItem <<Value Object>>
+    class ScheduleRequirement <<Value Object>>
+    class ScheduleOccurrence <<Immutable History>> {
+        + Id: UUID
+        + ScheduledDate: DateOnly
+        + RequestId: UUID?
+        + Status: string
+        + ProcessedAt: DateTimeOffset
     }
 
     class RequestedItem <<Entity>> {
@@ -158,6 +254,8 @@ package "SupplyRequests.Domain" #DFF2E1 {
 }
 
 package "SupplyRequests.Infrastructure" #FFE4CC {
+    class SupplyWorkflowStore <<EF Core Adapter>>
+    class RecurringRequestsWorker <<Hosted Service>>
     class PostgreSqlPurchaseRequestRepository <<EF Core Adapter>> {
         + GetByIdAsync(requestId): PurchaseRequest
         + AddAsync(request): void
@@ -176,7 +274,27 @@ PurchaseRequestStatusChanged ..|> IDomainEvent
 PurchaseRequest *-- "1..*" RequestedItem
 RequestedItem *-- "1..*" TechnicalRequirement
 PurchaseRequest *-- "0..*" RequestAttachment
-PurchaseRequest *-- "1..*" RequestStatusEntry
+PurchaseRequest *-- "0..*" RequestStatusEntry
+PurchaseRequest *-- "0..*" RequestAssignmentEntry
+PurchaseRequest *-- "0..*" RequirementRevision
+RequirementRevision *-- "2" RequirementDefinition
+TechnicalClarification --> PurchaseRequest : references
+RecurringRequestSchedule *-- "1..*" ScheduleItem
+ScheduleItem *-- "1..*" ScheduleRequirement
+RecurringRequestSchedule *-- "0..*" ScheduleOccurrence
+ScheduleOccurrence --> PurchaseRequest : generated draft
+RequestCollaborationController --> RequestCollaborationService
+RecurringRequestsController --> RecurringRequestsService
+RequestCollaborationService --> ISupplyWorkflowStore
+RequestCollaborationService --> IRequestUserDirectory
+RequestCollaborationService --> IPurchaseRequestRepository
+RecurringRequestsService --> ISupplyWorkflowStore
+RecurringRequestsService --> IRequestUserDirectory
+RecurringOccurrenceProcessor --> ISupplyWorkflowStore
+RecurringOccurrenceProcessor --> IPurchaseRequestRepository
+SupplyWorkflowStore ..|> ISupplyWorkflowStore
+ISupplyWorkflowStore ..> IScheduleLease
+RecurringRequestsWorker --> RecurringOccurrenceProcessor
 PurchaseRequest --> RequestPriority
 PurchaseRequest --> RequestStatus
 TechnicalRequirement --> ComparisonOperator

@@ -80,6 +80,7 @@ package "EvaluationSimulation.Application" #DCEEFF {
     class PurchaseRequestSnapshot <<Imported DTO>> {
         + RequestId: string
         + Version: long
+        + TechnicalRevision: long
         + RequiredDate: DateOnly
         + Priority: string
         + Items: IReadOnlyList
@@ -112,6 +113,7 @@ package "EvaluationSimulation.Domain" #DFF2E1 {
         - Id: EvaluationScenarioId
         - RequestId: string
         - Version: int
+        - TechnicalRevision: long
         - Status: ScenarioStatus
         - CreatedBy: UserId
         - CreatedAt: DateTimeOffset
@@ -120,6 +122,7 @@ package "EvaluationSimulation.Domain" #DFF2E1 {
         + Activate(): void
         + CreateNextVersion(): EvaluationScenario
         + ValidateWeights(): void
+        + BindTechnicalRevision(revision): void
     }
 
     class EvaluationCriterion <<Entity>> {
@@ -195,6 +198,7 @@ package "EvaluationSimulation.Domain" #DFF2E1 {
     class RequestEvaluationSnapshot <<Value Object>> {
         + RequestId: string
         + Version: long
+        + TechnicalRevision: long
         + RequiredDate: DateOnly
         + Priority: string
         + Requirements: IReadOnlyList

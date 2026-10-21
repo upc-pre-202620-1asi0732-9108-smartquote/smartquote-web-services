@@ -21,11 +21,15 @@ namespace SmartQuote.Integration.Tests;
 public sealed class StoryFactory : SmartQuoteFactory
 {
     public TestExchangeRate ExchangeRate { get; } = new();
+    public TimeProvider? Clock { get; set; }
+    public bool EnableRecurringWorker { get; set; }
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         base.ConfigureWebHost(builder);
         builder.ConfigureTestServices(services =>
         {
+            services.Configure<SmartQuote.API.SupplyRequests.Infrastructure.Recurrence.RecurringRequestsOptions>(o => { o.Enabled = EnableRecurringWorker; o.PollSeconds = 5; });
+            if (Clock is not null) { services.RemoveAll<TimeProvider>(); services.AddSingleton(Clock); }
             services.RemoveAll<IQuoteExtractionAgent>();
             services.AddSingleton<IQuoteExtractionAgent, EvidenceExtractionAgent>();
             services.RemoveAll<IExchangeRateProvider>();
@@ -90,8 +94,10 @@ public sealed class StoryFlow : IDisposable
     public HttpClient Manager { get; }
     public JsonElement Request { get; private set; }
     public Guid RequestId => Request.GetProperty("requestId").GetGuid();
-    public StoryFlow()
+    public StoryFlow(TimeProvider? clock = null, bool enableRecurringWorker = false)
     {
+        Factory.Clock = clock;
+        Factory.EnableRecurringWorker = enableRecurringWorker;
         Production = Client("ProductionSpecialist", ProductionId);
         Analyst = Client("PurchaseAnalyst", AnalystId);
         Manager = Client("PurchaseManager", ManagerId);

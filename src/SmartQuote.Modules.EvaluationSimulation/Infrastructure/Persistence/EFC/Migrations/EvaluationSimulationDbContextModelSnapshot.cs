@@ -50,6 +50,10 @@ namespace SmartQuote.Modules.EvaluationSimulation.Infrastructure.Persistence.EFC
                         .HasColumnType("uuid")
                         .HasColumnName("supersedes_scenario_id");
 
+                    b.Property<long>("TechnicalRevision")
+                        .HasColumnType("bigint")
+                        .HasColumnName("technical_revision");
+
                     b.Property<int>("Version")
                         .HasColumnType("integer")
                         .HasColumnName("version");
@@ -625,6 +629,10 @@ namespace SmartQuote.Modules.EvaluationSimulation.Infrastructure.Persistence.EFC
                             b1.Property<DateOnly>("RequiredDate")
                                 .HasColumnType("date")
                                 .HasColumnName("required_date");
+
+                            b1.Property<long>("TechnicalRevision")
+                                .HasColumnType("bigint")
+                                .HasColumnName("technical_revision");
 
                             b1.Property<long>("Version")
                                 .HasColumnType("bigint")

@@ -25,6 +25,7 @@ public class ScenarioApplicationService(
 
         ValidateTechnicalTargets(command.Criteria, request);
         var scenario = EvaluationScenario.Create(command.RequestId, new UserId(currentUser.UserId));
+        scenario.BindTechnicalRevision(request.TechnicalRevision);
 
         foreach (var criterionData in command.Criteria)
             scenario.AddCriterion(BuildCriterion(criterionData));
@@ -49,6 +50,7 @@ public class ScenarioApplicationService(
         var request = await GetEligibleRequestAsync(current.RequestId, cancellationToken);
         ValidateTechnicalTargets(command.Criteria, request);
         var next = current.CreateNextVersion(new UserId(currentUser.UserId));
+        next.BindTechnicalRevision(request.TechnicalRevision);
 
         foreach (var criterionData in command.Criteria)
             next.AddCriterion(BuildCriterion(criterionData));
@@ -105,6 +107,18 @@ public class ScenarioApplicationService(
 
         if (unknownTarget is not null)
             throw new DomainException($"Technical criterion target '{unknownTarget}' is not part of the purchase request.");
+
+        if (request.TechnicalRevision > 0)
+        {
+            foreach (var requirement in request.Items.SelectMany(i => i.Requirements).Where(r => r.IsMandatory))
+            {
+                if (!criteria.Any(c => c.Category == Domain.Model.Enums.CriterionCategory.TechnicalCompliance &&
+                    c.Mode == Domain.Model.Enums.CriterionMode.Mandatory && c.TargetField == requirement.RequirementId &&
+                    c.Operator.ToString() == requirement.Operator && c.ExpectedValue.Trim() == requirement.ExpectedValue.Trim() &&
+                    c.UnitOfMeasure.Trim().Equals(requirement.UnitOfMeasure.Trim(), StringComparison.OrdinalIgnoreCase)))
+                    throw new DomainException("Mandatory criteria must match the current revised technical specification. Create an updated scenario version.");
+            }
+        }
     }
 
     private static EvaluationCriterion BuildCriterion(CriterionData data) =>

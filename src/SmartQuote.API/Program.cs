@@ -165,6 +165,7 @@ builder.Services.AddPurchaseOrderingModule(builder.Configuration, connectionStri
 builder.Services.AddScoped<IOrderRequestLifecycle, OrderRequestLifecycleAdapter>();
 builder.Services.AddIdentityAccessModule(builder.Configuration, connectionString);
 builder.Services.AddScoped<IActorNameDirectory, SmartQuote.API.Integration.IdentityActorNameDirectory>();
+builder.Services.AddScoped<SmartQuote.API.SupplyRequests.Application.Ports.IRequestUserDirectory, RequestUserDirectoryAdapter>();
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<SupplyRequestsDbContext>("supply-requests-database")

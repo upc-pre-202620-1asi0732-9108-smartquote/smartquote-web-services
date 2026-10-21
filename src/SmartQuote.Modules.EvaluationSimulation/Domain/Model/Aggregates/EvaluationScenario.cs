@@ -14,6 +14,7 @@ public class EvaluationScenario : AggregateRoot<EvaluationScenarioId>
 
     public string RequestId { get; private set; } = string.Empty;
     public int Version { get; private set; }
+    public long TechnicalRevision { get; private set; }
     public ScenarioStatus Status { get; private set; }
     public UserId CreatedBy { get; private set; } = null!;
     public DateTimeOffset CreatedAt { get; private set; }
@@ -22,6 +23,12 @@ public class EvaluationScenario : AggregateRoot<EvaluationScenarioId>
     public IReadOnlyList<EvaluationCriterion> Criteria => _criteria.AsReadOnly();
 
     private EvaluationScenario() { }
+
+    public void BindTechnicalRevision(long revision)
+    {
+        if (Status != ScenarioStatus.Draft || revision < 0) throw new DomainException("Only a draft scenario can bind a technical revision.");
+        TechnicalRevision = revision;
+    }
 
     public static EvaluationScenario Create(string requestId, UserId createdBy)
     {

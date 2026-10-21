@@ -78,7 +78,7 @@ public class PurchaseRequestCommandService(
         request.ClearDomainEvents();
     }
 
-    private static RequestedItem BuildRequestedItem(RequestedItemData data)
+    internal static RequestedItem BuildRequestedItem(RequestedItemData data)
     {
         var item = RequestedItem.Create(data.Description, data.Quantity, data.UnitOfMeasure);
 

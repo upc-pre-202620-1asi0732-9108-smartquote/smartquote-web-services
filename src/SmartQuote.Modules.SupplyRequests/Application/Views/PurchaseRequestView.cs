@@ -11,7 +11,10 @@ public record PurchaseRequestView(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     IReadOnlyList<RequestedItemView> Items,
-    IReadOnlyList<RequestAttachmentView> Attachments);
+    IReadOnlyList<RequestAttachmentView> Attachments,
+    Guid? AssignedAnalystId = null,
+    Guid? ScheduleOccurrenceId = null,
+    long TechnicalRevision = 0);
 
 public record RequestedItemView(
     Guid ItemId,

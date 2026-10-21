@@ -9,11 +9,14 @@ public sealed class SupplyRequestsDbContext(DbContextOptions<SupplyRequestsDbCon
 {
     public DbSet<PurchaseRequest> PurchaseRequests => Set<PurchaseRequest>();
     public DbSet<RequestNotificationRecord> RequestNotifications => Set<RequestNotificationRecord>();
+    public DbSet<TechnicalClarification> TechnicalClarifications => Set<TechnicalClarification>();
+    public DbSet<RecurringRequestSchedule> RecurringRequestSchedules => Set<RecurringRequestSchedule>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.ApplySupplyRequestsConfiguration();
         builder.ApplyRequestNotificationsConfiguration();
+        builder.ApplyRequestWorkflowConfiguration();
         builder.UseSnakeCaseNamingConvention();
     }
 }

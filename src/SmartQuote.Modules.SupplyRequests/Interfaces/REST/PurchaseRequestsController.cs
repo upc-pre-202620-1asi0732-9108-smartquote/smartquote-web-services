@@ -40,13 +40,16 @@ public class PurchaseRequestsController(
         [FromQuery] string? status = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
+        [FromQuery] bool assignedToMe = false,
         CancellationToken cancellationToken = default)
     {
         var parsedStatus = status is null
             ? (RequestStatus?)null
             : EnumResourceParser.Parse<RequestStatus>(status, nameof(status));
 
-        var result = await queryService.ListAsync(parsedStatus, page, pageSize, cancellationToken);
+        var result = assignedToMe
+            ? await queryService.ListAssignedAsync(parsedStatus, page, pageSize, cancellationToken)
+            : await queryService.ListAsync(parsedStatus, page, pageSize, cancellationToken);
         return Ok(new PagedPurchaseRequestsResource(
             result.Items.Select(PurchaseRequestResourceFromViewAssembler.ToResource).ToList(),
             result.Page,
