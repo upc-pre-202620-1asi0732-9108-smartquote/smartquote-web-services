@@ -45,3 +45,9 @@ These projects exercise separate levels of verification. Their passing result do
 ## New request workflows: US15, US16 and US22
 
 `RequestWorkflowTests` covers domain rules. `RequestWorkflowAcceptanceTests` covers all eleven acceptance scenarios through the real API and PostgreSQL, including concurrent generation/reassignment, the hosted recurrence worker and invalidation of obsolete technical decisions. Each test identifies its story and scenario with xUnit traits. See `docs/us15-us16-us22-api.md` for API examples and execution by story.
+
+## Supplier authorization and acquisition budgets: US18 and US20
+
+`OrderingPolicyTests` covers supplier transitions, versioned budgets, aggregate acquisition totals and preserved FX evidence. `OrderingPolicyAcceptanceTests` covers their acceptance scenarios against the actual API/PostgreSQL, including races between suspension/budget reduction and approval, concurrent idempotent approvals, and missing conversion evidence. Filter with `Story=US18` or `Story=US20`, or run `pwsh -File tests/run-tests.ps1 -Story US20 -Level All`. See `docs/us18-us20-api.md`.
+
+The baseline `StoryFlow` explicitly authorizes its unique test supplier through the manager endpoint when a scenario needs an enabled provider. This is fixture preparation, not a production bypass; new US18 tests disable that preparation and exercise pending/suspended states directly.

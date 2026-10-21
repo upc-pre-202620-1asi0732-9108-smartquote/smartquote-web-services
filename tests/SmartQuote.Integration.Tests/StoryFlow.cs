@@ -21,6 +21,7 @@ namespace SmartQuote.Integration.Tests;
 public sealed class StoryFactory : SmartQuoteFactory
 {
     public TestExchangeRate ExchangeRate { get; } = new();
+    public string SupplierTaxIdentifier { get; } = "20" + Random.Shared.Next(100000000, 999999999).ToString();
     public TimeProvider? Clock { get; set; }
     public bool EnableRecurringWorker { get; set; }
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -31,7 +32,7 @@ public sealed class StoryFactory : SmartQuoteFactory
             services.Configure<SmartQuote.API.SupplyRequests.Infrastructure.Recurrence.RecurringRequestsOptions>(o => { o.Enabled = EnableRecurringWorker; o.PollSeconds = 5; });
             if (Clock is not null) { services.RemoveAll<TimeProvider>(); services.AddSingleton(Clock); }
             services.RemoveAll<IQuoteExtractionAgent>();
-            services.AddSingleton<IQuoteExtractionAgent, EvidenceExtractionAgent>();
+            services.AddSingleton<IQuoteExtractionAgent>(new EvidenceExtractionAgent(SupplierTaxIdentifier));
             services.RemoveAll<IExchangeRateProvider>();
             services.AddSingleton<IExchangeRateProvider>(ExchangeRate);
         });
@@ -52,7 +53,7 @@ public sealed class TestExchangeRate : IExchangeRateProvider
     }
 }
 
-public sealed class EvidenceExtractionAgent : IQuoteExtractionAgent
+public sealed class EvidenceExtractionAgent(string taxIdentifier) : IQuoteExtractionAgent
 {
     public Task<ExtractionResult> ExtractAsync(QuotationDocument document, PurchaseRequestReferenceData request, CancellationToken cancellationToken = default)
     {
@@ -68,7 +69,7 @@ public sealed class EvidenceExtractionAgent : IQuoteExtractionAgent
         var supplier = "Supplier " + document.FileName;
         var fields = new List<ExtractedFieldResult>
         {
-            Field("supplier.businessName", supplier), Field("supplier.taxIdentifier", "20123456789"),
+            Field("supplier.businessName", supplier), Field("supplier.taxIdentifier", taxIdentifier),
             Field("validUntil", validity.ToString("yyyy-MM-dd")), Field("currency", currency),
             Field("deliveryLeadTimeDays", "3"), Field("lines[0].description", "Alimento balanceado"),
             Field("lines[0].quantity", "1000"), Field("lines[0].unitOfMeasure", "kg"),
@@ -76,7 +77,7 @@ public sealed class EvidenceExtractionAgent : IQuoteExtractionAgent
                 low ? 0.3m : 1m, 1, "Unit price in controlled extraction fixture", !missing),
             Field("lines[0].specifications[0].value", nonCompliant ? "18" : "21")
         };
-        return Task.FromResult(new ExtractionResult(supplier, "20123456789", validity, currency, 3,
+        return Task.FromResult(new ExtractionResult(supplier, taxIdentifier, validity, currency, 3,
             [new ExtractedLineResult("Alimento balanceado", 1000m, "kg", missing ? null : price,
                 [new ExtractedSpecificationResult("Proteína cruda", nonCompliant ? "18" : "21", "%")])], fields));
     }
@@ -93,11 +94,13 @@ public sealed class StoryFlow : IDisposable
     public HttpClient Analyst { get; }
     public HttpClient Manager { get; }
     public JsonElement Request { get; private set; }
+    private readonly bool _enableSuppliers;
     public Guid RequestId => Request.GetProperty("requestId").GetGuid();
-    public StoryFlow(TimeProvider? clock = null, bool enableRecurringWorker = false)
+    public StoryFlow(TimeProvider? clock = null, bool enableRecurringWorker = false, bool enableSuppliers = true)
     {
         Factory.Clock = clock;
         Factory.EnableRecurringWorker = enableRecurringWorker;
+        _enableSuppliers = enableSuppliers;
         Production = Client("ProductionSpecialist", ProductionId);
         Analyst = Client("PurchaseAnalyst", AnalystId);
         Manager = Client("PurchaseManager", ManagerId);
@@ -152,6 +155,15 @@ public sealed class StoryFlow : IDisposable
             });
             Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
             quote = await Json(await Analyst.GetAsync($"/api/v1/quotations/{id}"));
+            if (_enableSuppliers)
+            {
+                // Baseline story fixture: the manager performs a real, justified US18 authorization.
+                var supplierId = quote.GetProperty("supplierId").GetString();
+                var supplier = await Json(await Manager.GetAsync($"/api/v1/suppliers/{supplierId}"));
+                if (supplier.GetProperty("status").GetString() == "Pending")
+                    await Json(await Manager.PostAsJsonAsync($"/api/v1/suppliers/{supplierId}/enable", new
+                    { reason = "Controlled test purchasing authorization", expectedVersion = supplier.GetProperty("version").GetInt64() }));
+            }
         }
         return quote;
     }

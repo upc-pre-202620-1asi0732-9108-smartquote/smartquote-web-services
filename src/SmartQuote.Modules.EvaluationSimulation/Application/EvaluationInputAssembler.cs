@@ -2,6 +2,7 @@ using SmartQuote.API.SupplyRequests.Application.OutboundServices;
 using SmartQuote.Modules.EvaluationSimulation.Domain.Model.ValueObjects;
 using SmartQuote.Modules.QuotationIntake.Application.OutboundServices;
 using DomainComparisonOperator = SmartQuote.Modules.EvaluationSimulation.Domain.Model.Enums.ComparisonOperator;
+using SmartQuote.Modules.EvaluationSimulation.Application.Ports;
 
 namespace SmartQuote.Modules.EvaluationSimulation.Application;
 
@@ -11,7 +12,8 @@ namespace SmartQuote.Modules.EvaluationSimulation.Application;
 /// </summary>
 public class EvaluationInputAssembler
 {
-    public EvaluationDataset Assemble(PurchaseRequestSnapshot request, IReadOnlyList<VerifiedQuotationSnapshot> quotations)
+    public EvaluationDataset Assemble(PurchaseRequestSnapshot request, IReadOnlyList<VerifiedQuotationSnapshot> quotations,
+        IReadOnlyList<SupplierEligibilityData> suppliers)
     {
         var capturedAt = DateTimeOffset.UtcNow;
 
@@ -53,7 +55,10 @@ public class EvaluationInputAssembler
                 line.UnitOfMeasure,
                 line.UnitPrice,
                 line.Specifications.Select(spec => new QuotationSpecificationSnapshotData(spec.Name, spec.Value, spec.UnitOfMeasure)).ToList())).ToList(),
-            capturedAt)).ToList();
+            capturedAt,
+            suppliers.SingleOrDefault(s => s.TaxIdentifier == quotation.SupplierTaxIdentifier.Trim())?.SupplierAccountId,
+            suppliers.SingleOrDefault(s => s.TaxIdentifier == quotation.SupplierTaxIdentifier.Trim())?.Status ?? "Unidentified",
+            suppliers.SingleOrDefault(s => s.TaxIdentifier == quotation.SupplierTaxIdentifier.Trim())?.Version ?? 0)).ToList();
 
         return new EvaluationDataset(requestSnapshot, quotationSnapshots);
     }

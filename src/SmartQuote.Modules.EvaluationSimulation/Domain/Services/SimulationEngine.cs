@@ -25,6 +25,10 @@ public class SimulationEngine
 
             ApplyMandatoryCriteria(scenario, input, evaluation);
 
+            if (quotationSnapshot.SupplierEligibilityStatus != "Enabled" || quotationSnapshot.SupplierAccountId is null)
+                evaluation.Exclude(new ExclusionReason(null, "SUPPLIER_NOT_ENABLED",
+                    $"El proveedor no está habilitado para nuevas compras (estado: {quotationSnapshot.SupplierEligibilityStatus ?? "sin registro"})."));
+
             evaluations.Add((evaluation, input));
             run.AddEvaluation(evaluation);
         }

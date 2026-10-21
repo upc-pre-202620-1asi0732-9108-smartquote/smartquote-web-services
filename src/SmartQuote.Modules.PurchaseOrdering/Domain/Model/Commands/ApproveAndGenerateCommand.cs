@@ -10,4 +10,5 @@ public record ApproveAndGenerateCommand(
     Guid SimulationRunId,
     string QuotationId,
     string DeliveryConditions,
-    string DeliveryDestination);
+    string DeliveryDestination,
+    long? ExpectedBudgetVersion = null);

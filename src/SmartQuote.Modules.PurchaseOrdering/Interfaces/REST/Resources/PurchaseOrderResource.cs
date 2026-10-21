@@ -19,7 +19,8 @@ public record PurchaseOrderResource(
     string DeliveryDestination,
     decimal Total,
     DateTimeOffset CreatedAt,
-    IReadOnlyList<PurchaseOrderLineResource> Lines);
+    IReadOnlyList<PurchaseOrderLineResource> Lines,
+    SmartQuote.API.PurchaseOrdering.Domain.Model.ValueObjects.ApprovalPolicyEvidence? PolicyEvidence = null);
 
 public record PurchaseOrderLineResource(
     Guid LineId,

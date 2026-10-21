@@ -11,6 +11,9 @@ public class QuotationEvaluationSnapshot
     public string SupplierId { get; private set; } = string.Empty;
     public string SupplierBusinessName { get; private set; } = string.Empty;
     public string SupplierTaxIdentifier { get; private set; } = string.Empty;
+    public Guid? SupplierAccountId { get; private set; }
+    public string? SupplierEligibilityStatus { get; private set; }
+    public long SupplierEligibilityVersion { get; private set; }
     public string Currency { get; private set; } = string.Empty;
     public int DeliveryLeadTimeDays { get; private set; }
     public DateTimeOffset VerifiedAt { get; private set; }
@@ -30,13 +33,19 @@ public class QuotationEvaluationSnapshot
         int deliveryLeadTimeDays,
         DateTimeOffset verifiedAt,
         IEnumerable<QuotationLineSnapshotData> lines,
-        DateTimeOffset capturedAt)
+        DateTimeOffset capturedAt,
+        Guid? supplierAccountId = null,
+        string? supplierEligibilityStatus = null,
+        long supplierEligibilityVersion = 0)
     {
         QuotationId = quotationId;
         Version = version;
         SupplierId = supplierId;
         SupplierBusinessName = supplierBusinessName;
         SupplierTaxIdentifier = supplierTaxIdentifier;
+        SupplierAccountId = supplierAccountId;
+        SupplierEligibilityStatus = supplierEligibilityStatus;
+        SupplierEligibilityVersion = supplierEligibilityVersion;
         Currency = currency;
         DeliveryLeadTimeDays = deliveryLeadTimeDays;
         VerifiedAt = verifiedAt;

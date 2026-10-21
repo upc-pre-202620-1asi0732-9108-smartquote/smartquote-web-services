@@ -23,7 +23,8 @@ public class QuoteExtractionService(
     IDomainEventDispatcher domainEventDispatcher,
     ICurrentUser currentUser,
     IConfiguration configuration,
-    ILogger<QuoteExtractionService> logger) : IVerifiedQuotationSnapshotProvider
+    ILogger<QuoteExtractionService> logger,
+    ISupplierRegistration suppliers) : IVerifiedQuotationSnapshotProvider
 {
     private const int DefaultMaxDocumentSizeBytes = 15 * 1024 * 1024;
 
@@ -176,6 +177,9 @@ public class QuoteExtractionService(
         quote.Confirm(
             new UserId(currentUser.UserId),
             lineMappings.ToDictionary(mapping => mapping.Key, mapping => mapping.Value.ToString()));
+
+        var supplierId = await suppliers.RegisterAsync(quote.Supplier.TaxIdentifier, quote.Supplier.BusinessName, cancellationToken);
+        quote.LinkRegisteredSupplier(supplierId);
 
         await unitOfWork.CompleteAsync(cancellationToken);
 

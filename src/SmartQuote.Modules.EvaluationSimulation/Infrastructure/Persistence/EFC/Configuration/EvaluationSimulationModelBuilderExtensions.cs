@@ -320,9 +320,9 @@ public static class EvaluationSimulationModelBuilderExtensions
 
                 reasons.Property(reason => reason.CriterionId)
                     .HasColumnName("evaluation_criterion_id")
-                    .HasConversion(id => id.Value, value => new Domain.Model.ValueObjects.EvaluationCriterionId(value))
+                    .HasConversion(id => id == null ? (Guid?)null : id.Value, value => value == null ? null : new Domain.Model.ValueObjects.EvaluationCriterionId(value.Value))
                     .HasColumnType("uuid")
-                    .IsRequired();
+                    .IsRequired(false);
 
                 reasons.Property(reason => reason.Code).IsRequired().HasMaxLength(50);
                 reasons.Property(reason => reason.Explanation).IsRequired();

@@ -9,11 +9,14 @@ public sealed class PurchaseOrderingDbContext(DbContextOptions<PurchaseOrderingD
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
 
     public DbSet<DeliveryEvaluation> DeliveryEvaluations => Set<DeliveryEvaluation>();
+    public DbSet<SupplierAccount> SupplierAccounts => Set<SupplierAccount>();
+    public DbSet<PurchaseBudget> PurchaseBudgets => Set<PurchaseBudget>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.ApplyPurchaseOrderingConfiguration();
         builder.ApplyDeliveryEvaluationConfiguration();
+        builder.ApplyOrderingPolicyConfiguration();
         builder.UseSnakeCaseNamingConvention();
     }
 }

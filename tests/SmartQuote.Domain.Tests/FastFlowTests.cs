@@ -111,7 +111,7 @@ public class FastFlowTests
             Guid.NewGuid().ToString(), 3, Guid.NewGuid().ToString(), name, "20123456789", "PEN", 3,
             DateTimeOffset.UtcNow,
             [new QuotationLineSnapshotData(Guid.NewGuid().ToString(), itemId, 1, "Alimento", 1000, "kg", price,
-                [new QuotationSpecificationSnapshotData("Crude protein", protein, "%")])], DateTimeOffset.UtcNow);
+                [new QuotationSpecificationSnapshotData("Crude protein", protein, "%")])], DateTimeOffset.UtcNow, Guid.NewGuid(), "Enabled", 2);
 
         var run = new SimulationEngine().Run(scenario,
             new EvaluationDataset(request, [Quote("A", "21", 4.5m), Quote("B", "20,5", 4.6m)]));
@@ -141,7 +141,7 @@ public class FastFlowTests
             Guid.NewGuid().ToString(), 1, Guid.NewGuid().ToString(), "Supplier", "20123456789",
             currency, 3, DateTimeOffset.UtcNow,
             [new QuotationLineSnapshotData(Guid.NewGuid().ToString(), null, 1, "Supply", 1000, "kg", unitPrice, [])],
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow, Guid.NewGuid(), "Enabled", 2);
 
         var usd = Quote("USD", 1m);
         var pen = Quote("PEN", 3.6m);

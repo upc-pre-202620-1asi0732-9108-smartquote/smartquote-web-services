@@ -10,7 +10,8 @@ public class SimulationValidityService(
     IEvaluationScenarioRepository scenarioRepository,
     IPurchaseRequestSnapshotReader requestSnapshotReader,
     IVerifiedQuotationSnapshotReader quotationSnapshotReader,
-    EvaluationInputAssembler inputAssembler)
+    EvaluationInputAssembler inputAssembler,
+    ISupplierEligibilityReader supplierEligibility)
 {
     public async Task EnsureCurrentAsync(SimulationRun simulationRun, CancellationToken cancellationToken = default)
     {
@@ -33,7 +34,8 @@ public class SimulationValidityService(
 
         var quotationSnapshots = await quotationSnapshotReader.GetCurrentForRequestAsync(scenario.RequestId, cancellationToken);
 
-        var dataset = inputAssembler.Assemble(requestSnapshot, quotationSnapshots);
+        var suppliers = await supplierEligibility.ReadAsync(quotationSnapshots.Select(q => q.SupplierTaxIdentifier.Trim()).Distinct().ToList(), cancellationToken);
+        var dataset = inputAssembler.Assemble(requestSnapshot, quotationSnapshots, suppliers);
 
         return InputFingerprint.FromParts(dataset.CalculateFingerprint(simulationRun.ExchangeRate).Value, scenario.CalculateDefinitionFingerprint().Value);
     }

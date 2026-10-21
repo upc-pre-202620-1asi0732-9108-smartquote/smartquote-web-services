@@ -309,7 +309,7 @@ namespace SmartQuote.Modules.EvaluationSimulation.Infrastructure.Persistence.EFC
                                         .HasColumnType("character varying(50)")
                                         .HasColumnName("code");
 
-                                    b2.Property<Guid>("CriterionId")
+                                    b2.Property<Guid?>("CriterionId")
                                         .HasColumnType("uuid")
                                         .HasColumnName("evaluation_criterion_id");
 
@@ -416,11 +416,23 @@ namespace SmartQuote.Modules.EvaluationSimulation.Infrastructure.Persistence.EFC
                                 .HasColumnType("integer")
                                 .HasColumnName("delivery_lead_time_days");
 
+                            b1.Property<Guid?>("SupplierAccountId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("supplier_account_id");
+
                             b1.Property<string>("SupplierBusinessName")
                                 .IsRequired()
                                 .HasMaxLength(200)
                                 .HasColumnType("character varying(200)")
                                 .HasColumnName("supplier_business_name");
+
+                            b1.Property<string>("SupplierEligibilityStatus")
+                                .HasColumnType("text")
+                                .HasColumnName("supplier_eligibility_status");
+
+                            b1.Property<long>("SupplierEligibilityVersion")
+                                .HasColumnType("bigint")
+                                .HasColumnName("supplier_eligibility_version");
 
                             b1.Property<string>("SupplierId")
                                 .IsRequired()

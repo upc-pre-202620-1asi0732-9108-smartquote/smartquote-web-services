@@ -41,6 +41,15 @@ public class PoultryQuote : AggregateRoot<PoultryQuoteId>
 
     private PoultryQuote() { }
 
+    public void LinkRegisteredSupplier(Guid supplierId)
+    {
+        if (Status != QuotationStatus.Verified) throw new DomainException("Only a verified supplier identity can be linked.");
+        if (supplierId == Guid.Empty) throw new DomainException("An identified supplier account is required.");
+        Supplier = new SupplierReference(supplierId.ToString(), Supplier.BusinessName, Supplier.TaxIdentifier);
+        Version++;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
     public static PoultryQuote Create(PurchaseRequestReference requestReference, SupplierReference supplier, SourceDocument document)
     {
         var now = DateTimeOffset.UtcNow;

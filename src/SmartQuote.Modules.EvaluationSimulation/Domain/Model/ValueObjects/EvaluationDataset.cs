@@ -17,7 +17,11 @@ public record EvaluationDataset(RequestEvaluationSnapshot Request, IReadOnlyList
             string.Join(',', Quotations.OrderBy(q => q.QuotationId).Select(q => $"{q.QuotationId}:{q.Version}")),
             exchangeRate?.FingerprintPart() ?? "NO_CURRENCY_CONVERSION");
         // Revision zero preserves existing fingerprints. Administrative assignment is intentionally excluded.
-        return Request.TechnicalRevision == 0 ? fingerprint : InputFingerprint.FromParts(fingerprint.Value,
-            Request.TechnicalRevision.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        if (Request.TechnicalRevision != 0)
+            fingerprint = InputFingerprint.FromParts(fingerprint.Value, Request.TechnicalRevision.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        if (Quotations.Any(q => q.SupplierEligibilityStatus is not null))
+            fingerprint = InputFingerprint.FromParts(fingerprint.Value, System.Text.Json.JsonSerializer.Serialize(Quotations
+                .OrderBy(q => q.QuotationId).Select(q => new { q.SupplierAccountId, q.SupplierEligibilityStatus, q.SupplierEligibilityVersion })));
+        return fingerprint;
     }
 }

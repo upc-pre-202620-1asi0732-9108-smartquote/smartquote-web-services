@@ -27,7 +27,8 @@ public class PurchaseOrdersController(PurchaseOrderApplicationService applicatio
             runId,
             quotationId.ToString(),
             resource.DeliveryConditions,
-            resource.DeliveryDestination);
+            resource.DeliveryDestination,
+            resource.ExpectedBudgetVersion);
         var result = await applicationService.ApproveAndGenerateAsync(command, cancellationToken);
         var response = PurchaseOrderResourceFromViewAssembler.ToResource(result.Order);
 

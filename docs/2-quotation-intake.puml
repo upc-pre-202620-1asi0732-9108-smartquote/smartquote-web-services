@@ -291,4 +291,11 @@ note bottom of SemanticKernelAgentConnector
   ni reemplaza la verificación humana.
 end note
 
+package "QuotationIntake.Application" {
+    interface ISupplierRegistration <<Port>> {
+        + RegisterAsync(taxIdentifier, businessName): UUID
+    }
+}
+QuoteExtractionService --> ISupplierRegistration : verified identity, not authorization
+
 @enduml

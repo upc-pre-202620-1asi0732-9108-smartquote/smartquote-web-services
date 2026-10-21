@@ -20,7 +20,8 @@ public class SimulationApplicationService(
     SimulationValidityService validityService,
     IEvaluationSimulationUnitOfWork unitOfWork,
     IDomainEventDispatcher domainEventDispatcher,
-    TimeProvider timeProvider) : ISimulationDecisionReader
+    TimeProvider timeProvider,
+    ISupplierEligibilityReader supplierEligibility) : ISimulationDecisionReader
 {
     public async Task<SimulationRunExecutionResult> RunAsync(Guid scenarioId, CancellationToken cancellationToken = default)
     {
@@ -38,7 +39,8 @@ public class SimulationApplicationService(
         if (scenario.TechnicalRevision != requestSnapshot.TechnicalRevision)
             throw new DomainException("The technical specification changed. Create an updated scenario version before running another simulation.");
 
-        var dataset = inputAssembler.Assemble(requestSnapshot, quotationSnapshots);
+        var suppliers = await supplierEligibility.ReadAsync(quotationSnapshots.Select(q => q.SupplierTaxIdentifier.Trim()).Distinct().ToList(), cancellationToken);
+        var dataset = inputAssembler.Assemble(requestSnapshot, quotationSnapshots, suppliers);
 
         var currencies = quotationSnapshots
             .Select(quotation => quotation.Currency.Trim().ToUpperInvariant())
@@ -113,7 +115,7 @@ public class SimulationApplicationService(
             run.Id.ToString(),
             run.RequestSnapshot.RequestId,
             quotationId,
-            quotationSnapshot.SupplierId,
+            quotationSnapshot.SupplierAccountId?.ToString() ?? quotationSnapshot.SupplierId,
             quotationSnapshot.SupplierBusinessName,
             quotationSnapshot.SupplierTaxIdentifier,
             quotationSnapshot.Currency,
@@ -126,7 +128,19 @@ public class SimulationApplicationService(
                 line.UnitPrice)).ToList(),
             quotationSnapshot.DeliveryLeadTimeDays,
             run.InputFingerprint.Value,
-            true);
+            true,
+            run.ExchangeRate is null || quotationSnapshot.Currency == "PEN" ? null : new ApprovedExchangeRateSnapshot(run.ExchangeRate.SourceCurrency, run.ExchangeRate.TargetCurrency,
+                run.ExchangeRate.Rate, run.ExchangeRate.RateType, run.ExchangeRate.PublishedOn, run.ExchangeRate.Source, run.ExchangeRate.RetrievedAt),
+            (run.ExchangeRate?.Convert(quotationSnapshot.TotalPrice()) ?? quotationSnapshot.TotalPrice()).Currency == "PEN"
+                ? (run.ExchangeRate?.Convert(quotationSnapshot.TotalPrice()) ?? quotationSnapshot.TotalPrice()).Amount : null);
+    }
+
+    public async Task<SimulationDecisionReference> GetSourceReferenceAsync(Guid runId, string quotationId, CancellationToken cancellationToken = default)
+    {
+        var run = await FindOrThrowAsync(runId, cancellationToken);
+        var quote = run.QuotationSnapshots.SingleOrDefault(q => q.QuotationId == quotationId)
+            ?? throw new NotFoundException("Quotation was not found in this simulation.");
+        return new(run.RequestSnapshot.RequestId, quote.SupplierTaxIdentifier);
     }
 
     private async Task<SimulationRun> FindOrThrowAsync(Guid runId, CancellationToken cancellationToken) =>
@@ -165,6 +179,6 @@ public class SimulationApplicationService(
                 comparableTotal.Currency,
                 originalTotal.Currency != comparableTotal.Currency,
                 evaluation.CriterionResults.Select(result => new CriterionResultView(result.CriterionId, result.Passed, result.NormalizedScore, result.WeightedContribution, result.Explanation)).ToList(),
-                evaluation.ExclusionReasons.Select(reason => new ExclusionReasonView(reason.CriterionId, reason.Code, reason.Explanation)).ToList());
+                evaluation.ExclusionReasons.Select(reason => new ExclusionReasonView(reason.CriterionId?.Value, reason.Code, reason.Explanation)).ToList());
         }).ToList());
 }

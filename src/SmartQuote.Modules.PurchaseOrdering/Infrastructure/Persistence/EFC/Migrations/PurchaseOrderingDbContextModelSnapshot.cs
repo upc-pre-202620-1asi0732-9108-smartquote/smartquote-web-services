@@ -74,6 +74,27 @@ namespace SmartQuote.Modules.PurchaseOrdering.Infrastructure.Persistence.EFC.Mig
                     b.ToTable("delivery_evaluations", "purchase_ordering");
                 });
 
+            modelBuilder.Entity("SmartQuote.API.PurchaseOrdering.Domain.Model.Aggregates.PurchaseBudget", b =>
+                {
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("request_id");
+
+                    b.Property<decimal>("AmountPen")
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("amount_pen");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("RequestId")
+                        .HasName("pk_purchase_budgets");
+
+                    b.ToTable("purchase_budgets", "purchase_ordering");
+                });
+
             modelBuilder.Entity("SmartQuote.API.PurchaseOrdering.Domain.Model.Aggregates.PurchaseOrder", b =>
                 {
                     b.Property<Guid>("Id")
@@ -115,6 +136,100 @@ namespace SmartQuote.Modules.PurchaseOrdering.Infrastructure.Persistence.EFC.Mig
                     b.ToTable("purchase_orders", "purchase_ordering");
                 });
 
+            modelBuilder.Entity("SmartQuote.API.PurchaseOrdering.Domain.Model.Aggregates.SupplierAccount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BusinessName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("business_name");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TaxIdentifier")
+                        .IsRequired()
+                        .HasMaxLength(11)
+                        .HasColumnType("character varying(11)")
+                        .HasColumnName("tax_identifier");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_supplier_accounts");
+
+                    b.HasIndex("TaxIdentifier")
+                        .IsUnique()
+                        .HasDatabaseName("ix_supplier_accounts_tax_identifier");
+
+                    b.ToTable("supplier_accounts", "purchase_ordering");
+                });
+
+            modelBuilder.Entity("SmartQuote.API.PurchaseOrdering.Domain.Model.Aggregates.PurchaseBudget", b =>
+                {
+                    b.OwnsMany("SmartQuote.API.PurchaseOrdering.Domain.Model.Aggregates.PurchaseBudgetRevision", "Revisions", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<decimal>("AmountPen")
+                                .HasColumnType("numeric(18,4)")
+                                .HasColumnName("amount_pen");
+
+                            b1.Property<DateTimeOffset>("AuthorizedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("authorized_at");
+
+                            b1.Property<Guid>("AuthorizedBy")
+                                .HasColumnType("uuid")
+                                .HasColumnName("authorized_by");
+
+                            b1.Property<string>("Reason")
+                                .IsRequired()
+                                .HasMaxLength(2000)
+                                .HasColumnType("character varying(2000)")
+                                .HasColumnName("reason");
+
+                            b1.Property<long>("Version")
+                                .HasColumnType("bigint")
+                                .HasColumnName("version");
+
+                            b1.Property<Guid>("request_id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("request_id");
+
+                            b1.HasKey("Id")
+                                .HasName("pk_purchase_budget_revisions");
+
+                            b1.HasIndex("request_id", "Version")
+                                .IsUnique()
+                                .HasDatabaseName("ix_purchase_budget_revisions_request_id_version");
+
+                            b1.ToTable("purchase_budget_revisions", "purchase_ordering");
+
+                            b1.WithOwner()
+                                .HasForeignKey("request_id")
+                                .HasConstraintName("fk_purchase_budget_revisions_purchase_budgets_request_id");
+                        });
+
+                    b.Navigation("Revisions");
+                });
+
             modelBuilder.Entity("SmartQuote.API.PurchaseOrdering.Domain.Model.Aggregates.PurchaseOrder", b =>
                 {
                     b.OwnsOne("SmartQuote.API.PurchaseOrdering.Domain.Model.ValueObjects.Approval", "Approval", b1 =>
@@ -143,6 +258,66 @@ namespace SmartQuote.Modules.PurchaseOrdering.Infrastructure.Persistence.EFC.Mig
                             b1.HasIndex("IdempotencyKey")
                                 .IsUnique()
                                 .HasDatabaseName("ix_purchase_orders_idempotency_key");
+
+                            b1.ToTable("purchase_orders", "purchase_ordering");
+
+                            b1.WithOwner()
+                                .HasForeignKey("Id")
+                                .HasConstraintName("fk_purchase_orders_purchase_orders_id");
+                        });
+
+                    b.OwnsOne("SmartQuote.API.PurchaseOrdering.Domain.Model.ValueObjects.ApprovalPolicyEvidence", "PolicyEvidence", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<decimal?>("BudgetAmountPen")
+                                .HasColumnType("numeric(18,4)")
+                                .HasColumnName("policy_budget_amount_pen");
+
+                            b1.Property<long?>("BudgetVersion")
+                                .HasColumnType("bigint")
+                                .HasColumnName("policy_budget_version");
+
+                            b1.Property<decimal?>("ExchangeRate")
+                                .HasColumnType("numeric(18,8)")
+                                .HasColumnName("policy_exchange_rate");
+
+                            b1.Property<string>("ExchangeRateSource")
+                                .HasColumnType("text")
+                                .HasColumnName("policy_exchange_rate_source");
+
+                            b1.Property<decimal?>("MarginPen")
+                                .HasColumnType("numeric(28,8)")
+                                .HasColumnName("policy_margin_pen");
+
+                            b1.Property<DateOnly?>("RatePublishedOn")
+                                .HasColumnType("date")
+                                .HasColumnName("policy_rate_published_on");
+
+                            b1.Property<DateTimeOffset?>("RateRetrievedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("policy_rate_retrieved_at");
+
+                            b1.Property<string>("RateType")
+                                .HasColumnType("text")
+                                .HasColumnName("policy_rate_type");
+
+                            b1.Property<Guid>("SupplierAccountId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("policy_supplier_account_id");
+
+                            b1.Property<long>("SupplierEligibilityVersion")
+                                .HasColumnType("bigint")
+                                .HasColumnName("policy_supplier_eligibility_version");
+
+                            b1.Property<decimal>("TotalPen")
+                                .HasColumnType("numeric(28,8)")
+                                .HasColumnName("policy_total_pen");
+
+                            b1.HasKey("Id")
+                                .HasName("pk_purchase_orders");
 
                             b1.ToTable("purchase_orders", "purchase_ordering");
 
@@ -320,11 +495,70 @@ namespace SmartQuote.Modules.PurchaseOrdering.Infrastructure.Persistence.EFC.Mig
 
                     b.Navigation("Lines");
 
+                    b.Navigation("PolicyEvidence");
+
                     b.Navigation("SourceDecision")
                         .IsRequired();
 
                     b.Navigation("Supplier")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("SmartQuote.API.PurchaseOrdering.Domain.Model.Aggregates.SupplierAccount", b =>
+                {
+                    b.OwnsMany("SmartQuote.API.PurchaseOrdering.Domain.Model.Aggregates.SupplierEligibilityEntry", "History", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<DateTimeOffset>("DecidedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("decided_at");
+
+                            b1.Property<Guid>("DecidedBy")
+                                .HasColumnType("uuid")
+                                .HasColumnName("decided_by");
+
+                            b1.Property<string>("NewStatus")
+                                .IsRequired()
+                                .HasColumnType("text")
+                                .HasColumnName("new_status");
+
+                            b1.Property<string>("PreviousStatus")
+                                .IsRequired()
+                                .HasColumnType("text")
+                                .HasColumnName("previous_status");
+
+                            b1.Property<string>("Reason")
+                                .IsRequired()
+                                .HasMaxLength(2000)
+                                .HasColumnType("character varying(2000)")
+                                .HasColumnName("reason");
+
+                            b1.Property<long>("Version")
+                                .HasColumnType("bigint")
+                                .HasColumnName("version");
+
+                            b1.Property<Guid>("supplier_id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("supplier_id");
+
+                            b1.HasKey("Id")
+                                .HasName("pk_supplier_eligibility_history");
+
+                            b1.HasIndex("supplier_id", "Version")
+                                .IsUnique()
+                                .HasDatabaseName("ix_supplier_eligibility_history_supplier_id_version");
+
+                            b1.ToTable("supplier_eligibility_history", "purchase_ordering");
+
+                            b1.WithOwner()
+                                .HasForeignKey("supplier_id")
+                                .HasConstraintName("fk_supplier_eligibility_history_supplier_accounts_supplier_id");
+                        });
+
+                    b.Navigation("History");
                 });
 #pragma warning restore 612, 618
         }

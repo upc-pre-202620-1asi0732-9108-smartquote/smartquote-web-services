@@ -33,6 +33,9 @@ public static class PurchaseOrderingModule
         services.AddScoped<ApprovedDecisionMapper>();
         services.AddScoped<PurchaseOrderGenerator>();
         services.AddScoped<PurchaseOrderApplicationService>();
+        services.AddScoped<IOrderingPolicyStore, OrderingPolicyStore>();
+        services.AddScoped<OrderingPolicyService>();
+        services.AddScoped<SmartQuote.Modules.PurchaseOrdering.Application.OutboundServices.ISupplierDirectory, SupplierDirectoryService>();
 
         services.AddDbContext<AuditingDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>

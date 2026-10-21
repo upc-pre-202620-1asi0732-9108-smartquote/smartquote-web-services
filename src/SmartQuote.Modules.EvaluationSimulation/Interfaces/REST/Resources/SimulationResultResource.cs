@@ -35,6 +35,6 @@ public record ExchangeRateResource(
 
 public record CriterionResultResource(Guid CriterionId, bool Passed, decimal NormalizedScore, decimal WeightedContribution, string Explanation);
 
-public record ExclusionReasonResource(Guid CriterionId, string Code, string Explanation);
+public record ExclusionReasonResource(Guid? CriterionId, string Code, string Explanation);
 
 public record RecommendationResource(string QuotationId, decimal Score, string Explanation);

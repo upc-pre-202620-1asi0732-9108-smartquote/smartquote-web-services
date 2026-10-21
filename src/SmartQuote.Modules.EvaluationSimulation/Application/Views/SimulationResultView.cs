@@ -35,6 +35,6 @@ public record ExchangeRateView(
 
 public record CriterionResultView(Guid CriterionId, bool Passed, decimal NormalizedScore, decimal WeightedContribution, string Explanation);
 
-public record ExclusionReasonView(Guid CriterionId, string Code, string Explanation);
+public record ExclusionReasonView(Guid? CriterionId, string Code, string Explanation);
 
 public record RecommendationView(string QuotationId, decimal Score, string Explanation);

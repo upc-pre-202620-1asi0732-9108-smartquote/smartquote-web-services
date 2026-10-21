@@ -23,7 +23,8 @@ public class PurchaseOrderApplicationService(
     IOrderRequestLifecycle requestLifecycle,
     IDomainEventDispatcher domainEventDispatcher,
     IDeliveryEvaluationRepository deliveryEvaluations,
-    ICurrentUser currentUser)
+    ICurrentUser currentUser,
+    IOrderingPolicyStore policies)
 {
     public async Task<PurchaseOrderGenerationResult> ApproveAndGenerateAsync(ApproveAndGenerateCommand command, CancellationToken cancellationToken = default)
     {
@@ -32,8 +33,7 @@ public class PurchaseOrderApplicationService(
         var existing = await repository.FindByIdempotencyKeyAsync(idempotencyKey, cancellationToken);
         if (existing is not null)
         {
-            await requestLifecycle.EnsureOrderedAsync(existing.SourceDecision.PurchaseRequestId, existing.OrderNumber.Value, cancellationToken);
-            return new PurchaseOrderGenerationResult(ToView(existing), false);
+            return await RecoverExistingAsync(existing, cancellationToken);
         }
 
         var existingForSimulation = await repository.FindBySimulationAsync(command.SimulationRunId.ToString(), cancellationToken);
@@ -42,9 +42,23 @@ public class PurchaseOrderApplicationService(
             if (existingForSimulation.SourceDecision.QuotationId != command.QuotationId)
                 throw new ConflictException("The simulation run already produced an order for a different quotation.");
 
-            await requestLifecycle.EnsureOrderedAsync(existingForSimulation.SourceDecision.PurchaseRequestId, existingForSimulation.OrderNumber.Value, cancellationToken);
-            return new PurchaseOrderGenerationResult(ToView(existingForSimulation), false);
+            return await RecoverExistingAsync(existingForSimulation, cancellationToken);
         }
+
+        var source = await decisionReader.GetSourceReferenceAsync(command.SimulationRunId, command.QuotationId, cancellationToken);
+        await using var policyLease = await policies.LockAsync(Guid.Parse(source.RequestId), source.SupplierTaxIdentifier.Trim(), cancellationToken);
+
+        // A competing approval may have committed while this request waited for the lock.
+        existing = await repository.FindByIdempotencyKeyAsync(idempotencyKey, cancellationToken);
+        if (existing is not null)
+        {
+            await policyLease.CommitAsync(cancellationToken);
+            await requestLifecycle.EnsureOrderedAsync(existing.SourceDecision.PurchaseRequestId, existing.OrderNumber.Value, cancellationToken);
+            return new PurchaseOrderGenerationResult(ToView(existing), false);
+        }
+        var supplier = await policies.SupplierByTaxAsync(source.SupplierTaxIdentifier.Trim(), cancellationToken);
+        if (supplier is null || supplier.Status != "Enabled")
+            throw new DomainException($"The supplier is not enabled for new purchases (status: {supplier?.Status ?? "Unidentified"}).");
 
         var snapshot = await decisionReader.GetApprovedSnapshotAsync(command.SimulationRunId, command.QuotationId, cancellationToken)
             ?? throw new NotFoundException($"No approved simulation decision was found for run '{command.SimulationRunId}' and quotation '{command.QuotationId}'.");
@@ -53,14 +67,26 @@ public class PurchaseOrderApplicationService(
         if (existingForRequest is not null)
             throw new ConflictException("This purchase request already has an approved purchase order.");
 
+        var budget = await policies.BudgetAsync(Guid.Parse(snapshot.RequestId), cancellationToken);
+        if (command.ExpectedBudgetVersion.HasValue && command.ExpectedBudgetVersion != (budget?.Version ?? 0))
+            throw new ConflictException("The budget changed. Refresh the budget check before approving.", "budget_check_outdated",
+                new Dictionary<string, object?> { ["currentBudgetVersion"] = budget?.Version ?? 0 });
+        var assessment = OrderingPolicyService.Assess(snapshot, budget);
+        if (!assessment.CanApprove)
+            throw new DomainException($"The acquisition exceeds the authorized budget by {assessment.ExcessPen} PEN (total: {assessment.TotalPen} PEN).");
+
         var decision = decisionMapper.Map(snapshot, command.DeliveryConditions, command.DeliveryDestination);
         var approval = new Approval(new UserId(currentUser.UserId), DateTimeOffset.UtcNow, idempotencyKey);
         var orderNumber = await orderNumberGenerator.NextAsync(cancellationToken);
 
         var order = orderGenerator.Generate(decision, approval, orderNumber);
+        order.RecordPolicyEvidence(new(supplier.Id, supplier.Version, assessment.BudgetVersion, assessment.BudgetAmountPen,
+            assessment.TotalPen, assessment.MarginPen, snapshot.ExchangeRate?.Rate, snapshot.ExchangeRate?.Source,
+            snapshot.ExchangeRate?.RateType, snapshot.ExchangeRate?.PublishedOn, snapshot.ExchangeRate?.RetrievedAt));
 
         await repository.AddAsync(order, cancellationToken);
         await unitOfWork.CompleteAsync(cancellationToken);
+        await policyLease.CommitAsync(cancellationToken);
 
         await domainEventDispatcher.DispatchAsync(order.DomainEvents, cancellationToken);
         order.ClearDomainEvents();
@@ -68,6 +94,14 @@ public class PurchaseOrderApplicationService(
         await requestLifecycle.EnsureOrderedAsync(snapshot.RequestId, order.OrderNumber.Value, cancellationToken);
 
         return new PurchaseOrderGenerationResult(ToView(order), true);
+    }
+
+    private async Task<PurchaseOrderGenerationResult> RecoverExistingAsync(PurchaseOrder existing, CancellationToken ct)
+    {
+        await using var lease = await policies.LockAsync(Guid.Parse(existing.SourceDecision.PurchaseRequestId), null, ct);
+        await lease.CommitAsync(ct);
+        await requestLifecycle.EnsureOrderedAsync(existing.SourceDecision.PurchaseRequestId, existing.OrderNumber.Value, ct);
+        return new(ToView(existing), false);
     }
 
     public async Task<PurchaseOrderView> GetByIdAsync(Guid purchaseOrderId, CancellationToken cancellationToken = default)
@@ -199,5 +233,5 @@ public class PurchaseOrderApplicationService(
             line.Description,
             line.Quantity,
             line.UnitOfMeasure,
-            line.UnitPrice)).ToList());
+            line.UnitPrice)).ToList(), order.PolicyEvidence);
 }

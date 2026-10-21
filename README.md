@@ -113,3 +113,7 @@ US13: `GET /api/v1/suppliers/{taxIdentifier}/performance` devuelve los promedios
 ## Aclaraciones, recurrencias y asignación
 
 US15, US16 y US22: [endpoints, ejemplos, migraciones y pruebas](docs/us15-us16-us22-api.md). Las solicitudes recurrentes se generan como borradores privados y requieren confirmación del especialista; nunca se envían ni generan órdenes automáticamente. Reinicie con las migraciones aplicadas para utilizar las rutas nuevas.
+
+## Habilitación de proveedores y presupuesto
+
+US18 y US20: [guía de endpoints y migraciones](docs/us18-us20-api.md). Los proveedores nuevos e históricos conciliados comienzan pendientes de habilitación por el jefe para nuevas compras. La aprobación verifica el estado actual y el presupuesto autorizado, conservando la tasa de la simulación para USD; no se requieren claves adicionales.

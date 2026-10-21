@@ -105,6 +105,8 @@ package "EvaluationSimulation.Application" #DCEEFF {
         + DeliveryTerms: string
         + InputFingerprint: string
         + IsCurrent: bool
+        + ExchangeRate: ApprovedExchangeRateSnapshot?
+        + ComparableTotalPen: decimal?
     }
 }
 
@@ -169,7 +171,7 @@ package "EvaluationSimulation.Domain" #DFF2E1 {
     }
 
     class ExclusionReason <<Value Object>> {
-        + CriterionId: EvaluationCriterionId
+        + CriterionId: EvaluationCriterionId?
         + Code: string
         + Explanation: string
     }
@@ -208,6 +210,9 @@ package "EvaluationSimulation.Domain" #DFF2E1 {
         + QuotationId: string
         + Version: long
         + Supplier: string
+        + SupplierAccountId: UUID?
+        + SupplierEligibilityStatus: string?
+        + SupplierEligibilityVersion: long
         + Lines: IReadOnlyList
         + TotalPrice(): Money
         + DeliveryLeadTimeDays: int
@@ -351,5 +356,13 @@ note bottom of SimulationRun
   Con el mismo fingerprint y las mismas reglas,
   el resultado debe ser determinista.
 end note
+
+package "EvaluationSimulation.Application" {
+    interface ISupplierEligibilityReader <<Port>> {
+        + ReadAsync(taxIdentifiers): IReadOnlyList
+    }
+}
+SimulationApplicationService --> ISupplierEligibilityReader
+SimulationValidityService --> ISupplierEligibilityReader
 
 @enduml
