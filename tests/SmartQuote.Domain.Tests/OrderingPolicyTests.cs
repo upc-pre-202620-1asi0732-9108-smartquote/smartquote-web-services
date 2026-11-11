@@ -7,6 +7,7 @@ using Xunit;
 
 namespace SmartQuote.Domain.Tests;
 
+[Trait("Category", "Unit")]
 public sealed class OrderingPolicyTests
 {
     [Fact, Trait("Story", "US18"), Trait("Scenario", "E1")]

@@ -8,6 +8,7 @@ using Xunit;
 
 namespace SmartQuote.Domain.Tests;
 
+[Trait("Category", "Unit")]
 public sealed class RequestWorkflowTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 20, 15, 0, 0, TimeSpan.Zero);
