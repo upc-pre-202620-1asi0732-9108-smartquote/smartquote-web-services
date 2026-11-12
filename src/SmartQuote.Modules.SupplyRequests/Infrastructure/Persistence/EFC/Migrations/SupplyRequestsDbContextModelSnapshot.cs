@@ -28,6 +28,10 @@ namespace SmartQuote.Modules.SupplyRequests.Infrastructure.Persistence.EFC.Migra
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<Guid?>("AssignedAnalystId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assigned_analyst_id");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -46,11 +50,19 @@ namespace SmartQuote.Modules.SupplyRequests.Infrastructure.Persistence.EFC.Migra
                         .HasColumnType("date")
                         .HasColumnName("required_date");
 
+                    b.Property<Guid?>("ScheduleOccurrenceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("schedule_occurrence_id");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)")
                         .HasColumnName("status");
+
+                    b.Property<long>("TechnicalRevision")
+                        .HasColumnType("bigint")
+                        .HasColumnName("technical_revision");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -64,7 +76,170 @@ namespace SmartQuote.Modules.SupplyRequests.Infrastructure.Persistence.EFC.Migra
                     b.HasKey("Id")
                         .HasName("pk_purchase_requests");
 
+                    b.HasIndex("ScheduleOccurrenceId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_purchase_requests_schedule_occurrence_id");
+
+                    b.HasIndex("AssignedAnalystId", "Status")
+                        .HasDatabaseName("ix_purchase_requests_assigned_analyst_id_status");
+
                     b.ToTable("purchase_requests", "supply_requests");
+                });
+
+            modelBuilder.Entity("SmartQuote.API.SupplyRequests.Domain.Model.Aggregates.RecurringRequestSchedule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("IntervalDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("interval_days");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Items")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("items");
+
+                    b.Property<DateTimeOffset>("NextOccurrenceAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_occurrence_at");
+
+                    b.Property<DateOnly>("NextOccurrenceDate")
+                        .HasColumnType("date")
+                        .HasColumnName("next_occurrence_date");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_id");
+
+                    b.Property<DateTimeOffset?>("PausedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paused_at");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("priority");
+
+                    b.Property<int>("RequiredDateOffsetDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("required_date_offset_days");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("start_date");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("time_zone_id");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_recurring_request_schedules");
+
+                    b.HasIndex("OwnerId")
+                        .HasDatabaseName("ix_recurring_request_schedules_owner_id");
+
+                    b.HasIndex("IsActive", "NextOccurrenceAt")
+                        .HasDatabaseName("ix_recurring_request_schedules_is_active_next_occurrence_at");
+
+                    b.ToTable("recurring_request_schedules", "supply_requests");
+                });
+
+            modelBuilder.Entity("SmartQuote.API.SupplyRequests.Domain.Model.Aggregates.TechnicalClarification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Answer")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("answer");
+
+                    b.Property<DateTimeOffset?>("AnsweredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("answered_at");
+
+                    b.Property<Guid?>("AnsweredBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("answered_by");
+
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("author_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<DateTimeOffset?>("NoticeReadAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("notice_read_at");
+
+                    b.Property<string>("Question")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("question");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("request_id");
+
+                    b.Property<Guid>("RequirementId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requirement_id");
+
+                    b.Property<long>("SourceTechnicalRevision")
+                        .HasColumnType("bigint")
+                        .HasColumnName("source_technical_revision");
+
+                    b.Property<Guid>("SpecialistId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("specialist_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_technical_clarifications");
+
+                    b.HasIndex("RequestId")
+                        .HasDatabaseName("ix_technical_clarifications_request_id");
+
+                    b.HasIndex("SpecialistId", "Status")
+                        .HasDatabaseName("ix_technical_clarifications_specialist_id_status");
+
+                    b.ToTable("technical_clarifications", "supply_requests");
                 });
 
             modelBuilder.Entity("SmartQuote.API.SupplyRequests.Infrastructure.Notifications.RequestNotificationRecord", b =>
@@ -111,6 +286,50 @@ namespace SmartQuote.Modules.SupplyRequests.Infrastructure.Persistence.EFC.Migra
 
             modelBuilder.Entity("SmartQuote.API.SupplyRequests.Domain.Model.Aggregates.PurchaseRequest", b =>
                 {
+                    b.OwnsMany("SmartQuote.API.SupplyRequests.Domain.Model.Entities.RequestAssignmentEntry", "AssignmentHistory", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<Guid>("AnalystId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("analyst_id");
+
+                            b1.Property<DateTimeOffset>("AssignedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("assigned_at");
+
+                            b1.Property<Guid>("AssignedBy")
+                                .HasColumnType("uuid")
+                                .HasColumnName("assigned_by");
+
+                            b1.Property<Guid?>("PreviousAnalystId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("previous_analyst_id");
+
+                            b1.Property<string>("Reason")
+                                .HasMaxLength(2000)
+                                .HasColumnType("character varying(2000)")
+                                .HasColumnName("reason");
+
+                            b1.Property<Guid>("purchase_request_id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("purchase_request_id");
+
+                            b1.HasKey("Id")
+                                .HasName("pk_request_assignment_history");
+
+                            b1.HasIndex("purchase_request_id")
+                                .HasDatabaseName("ix_request_assignment_history_purchase_request_id");
+
+                            b1.ToTable("request_assignment_history", "supply_requests");
+
+                            b1.WithOwner()
+                                .HasForeignKey("purchase_request_id")
+                                .HasConstraintName("fk_request_assignment_history_purchase_requests_purchase_reque~");
+                        });
+
                     b.OwnsMany("SmartQuote.API.SupplyRequests.Domain.Model.Entities.RequestAttachment", "Attachments", b1 =>
                         {
                             b1.Property<Guid>("Id")
@@ -306,11 +525,216 @@ namespace SmartQuote.Modules.SupplyRequests.Infrastructure.Persistence.EFC.Migra
                             b1.Navigation("Requirements");
                         });
 
+                    b.OwnsMany("SmartQuote.API.SupplyRequests.Domain.Model.Entities.RequirementRevision", "RequirementRevisions", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<DateTimeOffset>("ChangedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("changed_at");
+
+                            b1.Property<Guid>("ChangedBy")
+                                .HasColumnType("uuid")
+                                .HasColumnName("changed_by");
+
+                            b1.Property<Guid>("ClarificationId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("clarification_id");
+
+                            b1.Property<Guid>("ItemId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("item_id");
+
+                            b1.Property<string>("Reason")
+                                .IsRequired()
+                                .HasMaxLength(2000)
+                                .HasColumnType("character varying(2000)")
+                                .HasColumnName("reason");
+
+                            b1.Property<Guid>("RequirementId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("requirement_id");
+
+                            b1.Property<long>("TechnicalRevision")
+                                .HasColumnType("bigint")
+                                .HasColumnName("technical_revision");
+
+                            b1.Property<Guid>("purchase_request_id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("purchase_request_id");
+
+                            b1.HasKey("Id")
+                                .HasName("pk_requirement_revisions");
+
+                            b1.HasIndex("purchase_request_id", "TechnicalRevision")
+                                .IsUnique()
+                                .HasDatabaseName("ix_requirement_revisions_purchase_request_id_technical_revision");
+
+                            b1.ToTable("requirement_revisions", "supply_requests");
+
+                            b1.WithOwner()
+                                .HasForeignKey("purchase_request_id")
+                                .HasConstraintName("fk_requirement_revisions_purchase_requests_purchase_request_id");
+
+                            b1.OwnsOne("SmartQuote.API.SupplyRequests.Domain.Model.Entities.RequirementDefinition", "Current", b2 =>
+                                {
+                                    b2.Property<Guid>("Id")
+                                        .HasColumnType("uuid")
+                                        .HasColumnName("id");
+
+                                    b2.Property<string>("ExpectedValue")
+                                        .IsRequired()
+                                        .HasColumnType("text")
+                                        .HasColumnName("current_expected_value");
+
+                                    b2.Property<bool>("IsMandatory")
+                                        .HasColumnType("boolean")
+                                        .HasColumnName("current_is_mandatory");
+
+                                    b2.Property<string>("Name")
+                                        .IsRequired()
+                                        .HasColumnType("text")
+                                        .HasColumnName("current_name");
+
+                                    b2.Property<string>("Operator")
+                                        .IsRequired()
+                                        .HasColumnType("text")
+                                        .HasColumnName("current_operator");
+
+                                    b2.Property<string>("UnitOfMeasure")
+                                        .IsRequired()
+                                        .HasColumnType("text")
+                                        .HasColumnName("current_unit_of_measure");
+
+                                    b2.HasKey("Id")
+                                        .HasName("pk_requirement_revisions");
+
+                                    b2.ToTable("requirement_revisions", "supply_requests");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("Id")
+                                        .HasConstraintName("fk_requirement_revisions_requirement_revisions_id");
+                                });
+
+                            b1.OwnsOne("SmartQuote.API.SupplyRequests.Domain.Model.Entities.RequirementDefinition", "Previous", b2 =>
+                                {
+                                    b2.Property<Guid>("Id")
+                                        .HasColumnType("uuid")
+                                        .HasColumnName("id");
+
+                                    b2.Property<string>("ExpectedValue")
+                                        .IsRequired()
+                                        .HasColumnType("text")
+                                        .HasColumnName("previous_expected_value");
+
+                                    b2.Property<bool>("IsMandatory")
+                                        .HasColumnType("boolean")
+                                        .HasColumnName("previous_is_mandatory");
+
+                                    b2.Property<string>("Name")
+                                        .IsRequired()
+                                        .HasColumnType("text")
+                                        .HasColumnName("previous_name");
+
+                                    b2.Property<string>("Operator")
+                                        .IsRequired()
+                                        .HasColumnType("text")
+                                        .HasColumnName("previous_operator");
+
+                                    b2.Property<string>("UnitOfMeasure")
+                                        .IsRequired()
+                                        .HasColumnType("text")
+                                        .HasColumnName("previous_unit_of_measure");
+
+                                    b2.HasKey("Id")
+                                        .HasName("pk_requirement_revisions");
+
+                                    b2.ToTable("requirement_revisions", "supply_requests");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("Id")
+                                        .HasConstraintName("fk_requirement_revisions_requirement_revisions_id");
+                                });
+
+                            b1.Navigation("Current")
+                                .IsRequired();
+
+                            b1.Navigation("Previous")
+                                .IsRequired();
+                        });
+
+                    b.Navigation("AssignmentHistory");
+
                     b.Navigation("Attachments");
 
                     b.Navigation("Items");
 
+                    b.Navigation("RequirementRevisions");
+
                     b.Navigation("StatusHistory");
+                });
+
+            modelBuilder.Entity("SmartQuote.API.SupplyRequests.Domain.Model.Aggregates.RecurringRequestSchedule", b =>
+                {
+                    b.OwnsMany("SmartQuote.API.SupplyRequests.Domain.Model.Aggregates.ScheduleOccurrence", "Occurrences", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<DateTimeOffset>("ProcessedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("processed_at");
+
+                            b1.Property<Guid?>("RequestId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("request_id");
+
+                            b1.Property<DateOnly>("ScheduledDate")
+                                .HasColumnType("date")
+                                .HasColumnName("scheduled_date");
+
+                            b1.Property<string>("Status")
+                                .IsRequired()
+                                .HasMaxLength(30)
+                                .HasColumnType("character varying(30)")
+                                .HasColumnName("status");
+
+                            b1.Property<Guid>("schedule_id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("schedule_id");
+
+                            b1.HasKey("Id")
+                                .HasName("pk_schedule_occurrences");
+
+                            b1.HasIndex("RequestId")
+                                .IsUnique()
+                                .HasDatabaseName("ix_schedule_occurrences_request_id");
+
+                            b1.HasIndex("schedule_id", "ScheduledDate")
+                                .IsUnique()
+                                .HasDatabaseName("ix_schedule_occurrences_schedule_id_scheduled_date");
+
+                            b1.ToTable("schedule_occurrences", "supply_requests");
+
+                            b1.WithOwner()
+                                .HasForeignKey("schedule_id")
+                                .HasConstraintName("fk_schedule_occurrences_recurring_request_schedules_schedule_id");
+                        });
+
+                    b.Navigation("Occurrences");
+                });
+
+            modelBuilder.Entity("SmartQuote.API.SupplyRequests.Domain.Model.Aggregates.TechnicalClarification", b =>
+                {
+                    b.HasOne("SmartQuote.API.SupplyRequests.Domain.Model.Aggregates.PurchaseRequest", null)
+                        .WithMany()
+                        .HasForeignKey("RequestId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_technical_clarifications_purchase_requests_request_id");
                 });
 
             modelBuilder.Entity("SmartQuote.API.SupplyRequests.Infrastructure.Notifications.RequestNotificationRecord", b =>

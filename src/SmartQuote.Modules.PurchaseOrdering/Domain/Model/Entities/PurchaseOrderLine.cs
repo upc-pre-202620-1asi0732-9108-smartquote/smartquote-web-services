@@ -14,6 +14,9 @@ public class PurchaseOrderLine
     public decimal Quantity { get; private set; }
     public string UnitOfMeasure { get; private set; } = string.Empty;
     public decimal UnitPrice { get; private set; }
+    public string? SourceQuotationId { get; private set; }
+    public string? OriginalCurrency { get; private set; }
+    public decimal? OriginalUnitPrice { get; private set; }
 
     private PurchaseOrderLine() { }
 
@@ -50,7 +53,7 @@ public class PurchaseOrderLine
         if (!Guid.TryParse(source.SourceQuotationLineId, out _) || !Guid.TryParse(source.SourceRequestedItemId, out _))
             throw new DomainException("Purchase order lines require source quotation and requested-item UUIDs.");
 
-        return new PurchaseOrderLine(
+        var line = new PurchaseOrderLine(
             new PurchaseOrderLineId(Guid.NewGuid()),
             lineNumber,
             source.SourceQuotationLineId,
@@ -59,6 +62,10 @@ public class PurchaseOrderLine
             source.Quantity,
             source.UnitOfMeasure,
             source.UnitPrice);
+        line.SourceQuotationId = source.SourceQuotationId;
+        line.OriginalCurrency = source.OriginalCurrency;
+        line.OriginalUnitPrice = source.OriginalUnitPrice;
+        return line;
     }
 
     public Money CalculateSubtotal(string currency) => new Money(Quantity * UnitPrice, currency);

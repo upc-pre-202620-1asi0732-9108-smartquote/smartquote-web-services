@@ -8,10 +8,12 @@ public sealed class EvaluationSimulationDbContext(DbContextOptions<EvaluationSim
 {
     public DbSet<EvaluationScenario> EvaluationScenarios => Set<EvaluationScenario>();
     public DbSet<SimulationRun> SimulationRuns => Set<SimulationRun>();
+    public DbSet<SensitivityAnalysis> SensitivityAnalyses => Set<SensitivityAnalysis>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.ApplyEvaluationSimulationConfiguration();
+        builder.ApplyAdvancedEvaluationConfiguration();
         builder.UseSnakeCaseNamingConvention();
     }
 }

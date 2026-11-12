@@ -11,7 +11,10 @@ public record PurchaseRequestResource(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     IReadOnlyList<RequestedItemDetailResource> Items,
-    IReadOnlyList<RequestAttachmentResource> Attachments);
+    IReadOnlyList<RequestAttachmentResource> Attachments,
+    Guid? AssignedAnalystId = null,
+    Guid? ScheduleOccurrenceId = null,
+    long TechnicalRevision = 0);
 
 public record RequestedItemDetailResource(
     Guid ItemId,

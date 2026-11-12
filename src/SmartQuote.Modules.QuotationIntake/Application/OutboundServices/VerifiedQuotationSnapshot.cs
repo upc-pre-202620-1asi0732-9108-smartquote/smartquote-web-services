@@ -10,7 +10,8 @@ public record VerifiedQuotationSnapshot(
     string Currency,
     IReadOnlyList<VerifiedQuotationLineSnapshot> Lines,
     int DeliveryLeadTimeDays,
-    DateTimeOffset VerifiedAt);
+    DateTimeOffset VerifiedAt,
+    DateOnly? ValidUntil = null);
 
 public record VerifiedQuotationLineSnapshot(
     string LineId,

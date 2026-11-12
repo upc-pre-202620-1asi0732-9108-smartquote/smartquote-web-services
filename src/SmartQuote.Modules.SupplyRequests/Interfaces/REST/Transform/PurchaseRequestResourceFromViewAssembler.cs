@@ -17,7 +17,8 @@ public static class PurchaseRequestResourceFromViewAssembler
             view.CreatedAt,
             view.UpdatedAt,
             view.Items.Select(ToItemResource).ToList(),
-            view.Attachments.Select(ToAttachmentResource).ToList());
+            view.Attachments.Select(ToAttachmentResource).ToList(),
+            view.AssignedAnalystId, view.ScheduleOccurrenceId, view.TechnicalRevision);
 
     private static RequestedItemDetailResource ToItemResource(RequestedItemView view) =>
         new(

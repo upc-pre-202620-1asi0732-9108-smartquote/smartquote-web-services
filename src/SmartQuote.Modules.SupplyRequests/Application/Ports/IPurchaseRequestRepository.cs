@@ -10,4 +10,6 @@ public interface IPurchaseRequestRepository : IBaseRepository<PurchaseRequest>
     Task<PurchaseRequest?> GetByIdAsync(PurchaseRequestId requestId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PurchaseRequest>> ListAsync(Guid? requesterId, RequestStatus? status, int skip, int take, CancellationToken cancellationToken = default);
     Task<int> CountAsync(Guid? requesterId, RequestStatus? status, CancellationToken cancellationToken = default);
+    Task<SmartQuote.API.Shared.Application.PagedResult<PurchaseRequest>> ListAssignedAsync(Guid analystId,
+        RequestStatus? status, int page, int pageSize, CancellationToken ct = default);
 }

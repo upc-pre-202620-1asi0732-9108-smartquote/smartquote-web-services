@@ -48,8 +48,9 @@ public sealed class PurchasingMetricsController(
         decimal totalSavings = 0;
         var comparedCount = 0;
 
-        foreach (var order in periodOrders)
+        foreach (var acquisition in periodOrders.GroupBy(o => o.SourceDecision.PurchaseRequestId))
         {
+            var order = acquisition.OrderBy(o => o.CreatedAt).First();
             if (!Guid.TryParse(order.SourceDecision.PurchaseRequestId, out var requestGuid) ||
                 !Guid.TryParse(order.SourceDecision.SimulationRunId, out var runGuid))
                 continue;
@@ -70,6 +71,8 @@ public sealed class PurchasingMetricsController(
                 run.InputFingerprint.Value != order.SourceDecision.InputFingerprint)
                 continue;
 
+            // Distributed awards count once for timing; do not invent whole-offer savings from individual item winners.
+            if (run.Mode == "DistributedByItem" || order.SourceDecision.QuotationId is null) continue;
             var savings = PurchasingMetricsCalculator.ComparativeSavingsPen(run, order.SourceDecision.QuotationId);
             if (savings is null)
                 continue;

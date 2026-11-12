@@ -2,8 +2,9 @@
 
 public record EvaluationDataset(RequestEvaluationSnapshot Request, IReadOnlyList<QuotationEvaluationSnapshot> Quotations)
 {
-    public InputFingerprint CalculateFingerprint(ExchangeRateSnapshot? exchangeRate = null) =>
-        InputFingerprint.FromParts(
+    public InputFingerprint CalculateFingerprint(ExchangeRateSnapshot? exchangeRate = null, DateOnly? operationDate = null)
+    {
+        var fingerprint = InputFingerprint.FromParts(
             System.Text.Json.JsonSerializer.Serialize(new
             {
                 Request.RequestId, Request.RequiredDate, Request.Priority,
@@ -15,4 +16,15 @@ public record EvaluationDataset(RequestEvaluationSnapshot Request, IReadOnlyList
             }),
             string.Join(',', Quotations.OrderBy(q => q.QuotationId).Select(q => $"{q.QuotationId}:{q.Version}")),
             exchangeRate?.FingerprintPart() ?? "NO_CURRENCY_CONVERSION");
+        // Revision zero preserves existing fingerprints. Administrative assignment is intentionally excluded.
+        if (Request.TechnicalRevision != 0)
+            fingerprint = InputFingerprint.FromParts(fingerprint.Value, Request.TechnicalRevision.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        if (Quotations.Any(q => q.SupplierEligibilityStatus is not null))
+            fingerprint = InputFingerprint.FromParts(fingerprint.Value, System.Text.Json.JsonSerializer.Serialize(Quotations
+                .OrderBy(q => q.QuotationId).Select(q => new { q.SupplierAccountId, q.SupplierEligibilityStatus, q.SupplierEligibilityVersion })));
+        if (operationDate.HasValue && Quotations.Any(q => q.ValidUntil.HasValue && q.ValidUntil < operationDate))
+            fingerprint = InputFingerprint.FromParts(fingerprint.Value, "expired", string.Join(',', Quotations
+                .Where(q => q.ValidUntil.HasValue && q.ValidUntil < operationDate).Select(q => q.QuotationId).Order()));
+        return fingerprint;
+    }
 }

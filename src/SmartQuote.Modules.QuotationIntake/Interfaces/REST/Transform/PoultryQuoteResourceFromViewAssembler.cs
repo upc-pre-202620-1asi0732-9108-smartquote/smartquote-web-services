@@ -24,7 +24,7 @@ public static class PoultryQuoteResourceFromViewAssembler
             view.CreatedAt,
             view.UpdatedAt,
             view.Lines.Select(ToLineResource).ToList(),
-            view.Fields.Select(ToFieldResource).ToList());
+            view.Fields.Select(ToFieldResource).ToList(), view.IsCurrent, view.CommercialStatus);
 
     private static QuotationLineResource ToLineResource(QuotationLineView view) =>
         new(

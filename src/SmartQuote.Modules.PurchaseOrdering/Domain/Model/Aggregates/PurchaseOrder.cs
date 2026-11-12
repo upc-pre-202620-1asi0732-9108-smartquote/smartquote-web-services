@@ -20,10 +20,32 @@ public class PurchaseOrder : AggregateRoot<PurchaseOrderId>
     public DeliveryTerms DeliveryTerms { get; private set; } = null!;
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? DeliveredAt { get; private set; }
+    public ApprovalPolicyEvidence? PolicyEvidence { get; private set; }
+    public Guid? AwardId { get; private set; }
+    public Guid? AwardSupplierId { get; private set; }
 
     public IReadOnlyList<PurchaseOrderLine> Lines => _lines.AsReadOnly();
 
     private PurchaseOrder() { }
+
+    public void LinkAward(Guid awardId, Guid supplierId)
+    {
+        if (AwardId.HasValue || awardId == Guid.Empty || supplierId == Guid.Empty) throw new DomainException("An issued order belongs to exactly one award and supplier.");
+        AwardId = awardId; AwardSupplierId = supplierId;
+    }
+
+    public void RecordPolicyEvidence(ApprovalPolicyEvidence evidence)
+    {
+        if (PolicyEvidence is not null) throw new DomainException("Approval policy evidence is immutable after issuance.");
+        if (evidence.SupplierAccountId == Guid.Empty || evidence.SupplierEligibilityVersion < 1 || evidence.TotalPen < 0)
+            throw new DomainException("Valid supplier authorization and acquisition amount are required.");
+        if (evidence.BudgetVersion.HasValue && (evidence.BudgetVersion <= 0 || evidence.BudgetAmountPen is not > 0 ||
+            evidence.TotalPen > evidence.BudgetAmountPen || evidence.MarginPen != evidence.BudgetAmountPen - evidence.TotalPen))
+            throw new DomainException("The recorded budget authorization does not cover this acquisition.");
+        if (Currency == "USD" && (evidence.ExchangeRate is not > 0 || string.IsNullOrWhiteSpace(evidence.ExchangeRateSource)))
+            throw new DomainException("A USD order requires the preserved conversion evidence.");
+        PolicyEvidence = evidence;
+    }
 
     public static PurchaseOrder Create(OrderNumber number, ApprovedPurchaseDecision decision, Approval approval)
     {
@@ -70,6 +92,6 @@ public class PurchaseOrder : AggregateRoot<PurchaseOrderId>
         AddDomainEvent(new PurchaseOrderDelivered(Id, SourceDecision.PurchaseRequestId, deliveredBy, deliveredAt));
     }
 
-    public Money CalculateTotal() =>
-        _lines.Aggregate(new Money(0, Currency), (total, line) => total + line.CalculateSubtotal(Currency));
+    public Money CalculateTotal() => new(_lines.Sum(line => SourceDecision.QuotationId is null
+        ? decimal.Round(line.Quantity * line.UnitPrice, 4, MidpointRounding.AwayFromZero) : line.Quantity * line.UnitPrice), Currency);
 }

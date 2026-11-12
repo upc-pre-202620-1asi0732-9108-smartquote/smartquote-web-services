@@ -1,6 +1,6 @@
 # API verification tests
 
-The solution's existing xUnit projects run with `dotnet test SmartQuote.sln` and do not require PostgreSQL. The two additional projects below are run explicitly against a local PostgreSQL test database; they are not included in the solution's default test command.
+The solution includes domain, IAM, PostgreSQL integration and BDD test projects. Domain and IAM tests do not require PostgreSQL; integration and BDD do. With Docker Desktop running, `pwsh -File tests/run-tests.ps1 -Level All` provisions an isolated PostgreSQL instance and test API, runs the suites and removes only those temporary resources.
 
 ## PostgreSQL integration tests
 
@@ -20,7 +20,7 @@ dotnet test tests/SmartQuote.Integration.Tests/SmartQuote.Integration.Tests.cspr
 dotnet test tests/SmartQuote.Integration.Tests/SmartQuote.Integration.Tests.csproj --filter FullyQualifiedName~PurchaseOrderContractTests
 ```
 
-## US16 purchasing metrics
+## Purchasing metrics (US14 in the current report)
 
 `PurchasingMetricsCalculatorTests` checks the comparative savings formula with synthetic PEN/USD quotations, an excluded offer, and missing comparable data. Four `ApiPersistenceTests.Metrics...` cases check the manager-only endpoint, date validation, empty periods, a persisted request-to-order time sample, and the calculation from a persisted simulation with two eligible quotations in PostgreSQL. The response reports UTC dates, the count used for each indicator, and `null` when data is insufficient. Filter these seven tests with:
 
@@ -41,3 +41,13 @@ dotnet test tests/SmartQuote.Bdd.Tests/SmartQuote.Bdd.Tests.csproj --configurati
 ```
 
 These projects exercise separate levels of verification. Their passing result does not establish that the native Android application has been tested.
+
+## New request workflows: US15, US16 and US22
+
+`RequestWorkflowTests` covers domain rules. `RequestWorkflowAcceptanceTests` covers all eleven acceptance scenarios through the real API and PostgreSQL, including concurrent generation/reassignment, the hosted recurrence worker and invalidation of obsolete technical decisions. Each test identifies its story and scenario with xUnit traits. See `docs/us15-us16-us22-api.md` for API examples and execution by story.
+
+## Supplier authorization and acquisition budgets: US18 and US20
+
+`OrderingPolicyTests` covers supplier transitions, versioned budgets, aggregate acquisition totals and preserved FX evidence. `OrderingPolicyAcceptanceTests` covers their acceptance scenarios against the actual API/PostgreSQL, including races between suspension/budget reduction and approval, concurrent idempotent approvals, and missing conversion evidence. Filter with `Story=US18` or `Story=US20`, or run `pwsh -File tests/run-tests.ps1 -Story US20 -Level All`. See `docs/us18-us20-api.md`.
+
+The baseline `StoryFlow` explicitly authorizes its unique test supplier through the manager endpoint when a scenario needs an enabled provider. This is fixture preparation, not a production bypass; new US18 tests disable that preparation and exercise pending/suspended states directly.

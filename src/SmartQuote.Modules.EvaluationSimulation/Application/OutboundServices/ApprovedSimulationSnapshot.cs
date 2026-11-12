@@ -11,7 +11,13 @@ public record ApprovedSimulationSnapshot(
     IReadOnlyList<ApprovedOrderLineSnapshot> OrderLines,
     int DeliveryLeadTimeDays,
     string InputFingerprint,
-    bool IsCurrent);
+    bool IsCurrent,
+    ApprovedExchangeRateSnapshot? ExchangeRate = null,
+    decimal? ComparableTotalPen = null);
+
+public record ApprovedExchangeRateSnapshot(string SourceCurrency, string TargetCurrency, decimal Rate, string RateType,
+    DateOnly PublishedOn, string Source, DateTimeOffset RetrievedAt);
+public record SimulationDecisionReference(string RequestId, string SupplierTaxIdentifier);
 
 public record ApprovedOrderLineSnapshot(
     string? SourceQuotationLineId,

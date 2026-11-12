@@ -18,6 +18,8 @@ public class PurchaseRequestRepository(SupplyRequestsDbContext context)
             .ThenInclude(item => item.Requirements)
             .Include(request => request.Attachments)
             .Include(request => request.StatusHistory)
+            .Include(request => request.AssignmentHistory)
+            .Include(request => request.RequirementRevisions)
             .FirstOrDefaultAsync(request => request.Id == requestId, cancellationToken);
 
     public async Task<IReadOnlyList<PurchaseRequest>> ListAsync(
@@ -59,6 +61,19 @@ public class PurchaseRequestRepository(SupplyRequestsDbContext context)
         if (status.HasValue)
             query = query.Where(request => request.Status == status.Value);
 
+        // Drafts are private to their requesting specialist, including direct status filters.
+        if (!requesterId.HasValue) query = query.Where(request => request.Status != RequestStatus.Draft);
         return query;
+    }
+
+    public async Task<SmartQuote.API.Shared.Application.PagedResult<PurchaseRequest>> ListAssignedAsync(Guid analystId,
+        RequestStatus? status, int page, int pageSize, CancellationToken ct = default)
+    {
+        var query = ApplyFilters(Context.PurchaseRequests.AsNoTracking(), null, status)
+            .Where(r => r.AssignedAnalystId == analystId);
+        var count = await query.CountAsync(ct);
+        var items = await query.AsSplitQuery().Include(r => r.Items).ThenInclude(i => i.Requirements).Include(r => r.Attachments)
+            .OrderBy(r => r.RequiredDate).ThenBy(r => r.Id).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+        return new(items, page, pageSize, count);
     }
 }

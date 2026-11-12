@@ -16,6 +16,8 @@ public class SimulationRun : AggregateRoot<SimulationRunId>
     public DateTimeOffset ExecutedAt { get; private set; }
     public Recommendation? Recommendation { get; private set; }
     public ExchangeRateSnapshot? ExchangeRate { get; private set; }
+    public string Mode { get; private set; } = "SingleSupplier";
+    public DistributedSimulationResult? Distribution { get; private set; }
 
     /// <summary>
     /// Immutable copies of the request and quotations used (docs/database-schema-documentation.md
@@ -56,6 +58,13 @@ public class SimulationRun : AggregateRoot<SimulationRunId>
     }
 
     public void AddEvaluation(QuotationEvaluation evaluation) => _evaluations.Add(evaluation);
+
+    public void AttachDistribution(DistributedSimulationResult result)
+    {
+        if (_evaluations.Count > 0 || Distribution is not null) throw new DomainException("Simulation results are immutable.");
+        Mode = "DistributedByItem"; Distribution = result;
+        InputFingerprint = ValueObjects.InputFingerprint.FromParts(InputFingerprint.Value, Mode);
+    }
 
     public void DefineRecommendation()
     {

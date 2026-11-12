@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using SmartQuote.API.Shared.Domain;
 using SmartQuote.API.SupplyRequests.Application;
 using SmartQuote.API.SupplyRequests.Application.EventHandlers;
@@ -35,6 +36,13 @@ public static class SupplyRequestsModule
         services.AddScoped<PurchaseRequestCommandService>();
         services.AddScoped<PurchaseRequestQueryService>();
         services.AddScoped<RequestNotificationService>();
+        services.AddScoped<ISupplyWorkflowStore, SupplyWorkflowStore>();
+        services.AddScoped<RequestCollaborationService>();
+        services.AddScoped<RecurringRequestsService>();
+        services.AddScoped<RecurringOccurrenceProcessor>();
+        services.TryAddSingleton(TimeProvider.System);
+        services.Configure<SmartQuote.API.SupplyRequests.Infrastructure.Recurrence.RecurringRequestsOptions>(configuration.GetSection("SupplyRequests:Recurrence"));
+        services.AddHostedService<SmartQuote.API.SupplyRequests.Infrastructure.Recurrence.RecurringRequestsWorker>();
         services.AddScoped<IPurchaseRequestSnapshotProvider>(provider =>
             provider.GetRequiredService<PurchaseRequestQueryService>());
         services.AddScoped<IDomainEventHandler<PurchaseRequestStatusChanged>, RequestStatusChangedNotificationHandler>();

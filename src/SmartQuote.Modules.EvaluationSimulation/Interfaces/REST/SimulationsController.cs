@@ -12,8 +12,16 @@ namespace SmartQuote.Modules.EvaluationSimulation.Interfaces.REST;
 [Authorize(Roles = SmartQuoteRoles.PurchasingStaff)]
 public class SimulationsController(
     ScenarioApplicationService scenarioService,
-    SimulationApplicationService simulationService) : ControllerBase
+    SimulationApplicationService simulationService,
+    DistributedSimulationService distributedService) : ControllerBase
 {
+    [HttpPost("api/v1/evaluation-scenarios/{scenarioId:guid}/distributed-simulations")]
+    public async Task<IActionResult> RunDistributed(Guid scenarioId, CancellationToken ct)
+    {
+        var result = await distributedService.RunAsync(scenarioId, ct);
+        var view = SimulationResultResourceFromViewAssembler.ToResource(await simulationService.GetResultAsync(result.RunId, ct));
+        return result.WasCreated ? CreatedAtAction(nameof(GetResult), new { simulationRunId = result.RunId.Value }, view) : Ok(view);
+    }
     [HttpPost("api/v1/evaluation-scenarios")]
     [ProducesResponseType<EvaluationScenarioResource>(StatusCodes.Status201Created)]
     public async Task<ActionResult<EvaluationScenarioResource>> CreateScenario(

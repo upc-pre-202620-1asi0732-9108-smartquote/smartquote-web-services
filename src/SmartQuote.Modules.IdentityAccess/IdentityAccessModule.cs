@@ -28,6 +28,7 @@ public static class IdentityAccessModule
         services.AddSingleton<IAccessTokenIssuer, JwtAccessTokenIssuer>();
         services.AddSingleton<IRefreshTokenGenerator, RefreshTokenGenerator>();
         services.AddScoped<AuthenticationService>();
+        services.AddScoped<SmartQuote.Modules.IdentityAccess.Application.OutboundServices.IUserDirectory, UserDirectory>();
 
         return services;
     }

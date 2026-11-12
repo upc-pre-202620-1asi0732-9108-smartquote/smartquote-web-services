@@ -8,6 +8,7 @@ public class RequestEvaluationSnapshot
 
     public string RequestId { get; private set; } = string.Empty;
     public long Version { get; private set; }
+    public long TechnicalRevision { get; private set; }
     public DateOnly RequiredDate { get; private set; }
     public string Priority { get; private set; } = string.Empty;
     public DateTimeOffset CapturedAt { get; private set; }
@@ -22,10 +23,12 @@ public class RequestEvaluationSnapshot
         DateOnly requiredDate,
         string priority,
         IEnumerable<RequestItemSnapshotData> items,
-        DateTimeOffset capturedAt)
+        DateTimeOffset capturedAt,
+        long technicalRevision = 0)
     {
         RequestId = requestId;
         Version = version;
+        TechnicalRevision = technicalRevision;
         RequiredDate = requiredDate;
         Priority = priority;
         CapturedAt = capturedAt;

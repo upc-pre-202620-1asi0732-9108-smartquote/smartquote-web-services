@@ -9,7 +9,9 @@ public record SimulationResultResource(
     bool IsCurrent,
     RecommendationResource? Recommendation,
     ExchangeRateResource? ExchangeRate,
-    IReadOnlyList<QuotationEvaluationResource> Evaluations);
+    IReadOnlyList<QuotationEvaluationResource> Evaluations,
+    string Mode = "SingleSupplier",
+    SmartQuote.Modules.EvaluationSimulation.Domain.Model.ValueObjects.DistributedSimulationResult? Distribution = null);
 
 public record QuotationEvaluationResource(
     string QuotationId,
@@ -35,6 +37,6 @@ public record ExchangeRateResource(
 
 public record CriterionResultResource(Guid CriterionId, bool Passed, decimal NormalizedScore, decimal WeightedContribution, string Explanation);
 
-public record ExclusionReasonResource(Guid CriterionId, string Code, string Explanation);
+public record ExclusionReasonResource(Guid? CriterionId, string Code, string Explanation);
 
 public record RecommendationResource(string QuotationId, decimal Score, string Explanation);

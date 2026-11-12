@@ -109,3 +109,15 @@ US13: `GET /api/v1/suppliers/{taxIdentifier}/performance` devuelve los promedios
 
 - Diagramas de clases PlantUML: `docs/1-supply-requests.puml`, `docs/2-quotation-intake.puml`, `docs/3-evaluation-simulation.puml`, `docs/4-purchase-ordering.puml` y `docs/5-identity-access.puml`.
 - Modelo relacional: `docs/database-schema-documentation.md`.
+
+## Aclaraciones, recurrencias y asignación
+
+US15, US16 y US22: [endpoints, ejemplos, migraciones y pruebas](docs/us15-us16-us22-api.md). Las solicitudes recurrentes se generan como borradores privados y requieren confirmación del especialista; nunca se envían ni generan órdenes automáticamente. Reinicie con las migraciones aplicadas para utilizar las rutas nuevas.
+
+## Habilitación de proveedores y presupuesto
+
+US18 y US20: [guía de endpoints y migraciones](docs/us18-us20-api.md). Los proveedores nuevos e históricos conciliados comienzan pendientes de habilitación por el jefe para nuevas compras. La aprobación verifica el estado actual y el presupuesto autorizado, conservando la tasa de la simulación para USD; no se requieren claves adicionales.
+
+## Vencimientos, sensibilidad y compra distribuida
+
+US17, US19 y US21: [rutas, ejemplos, configuración, tablas y pruebas](docs/us17-us19-us21-api.md). Incluye alertas para el analista asignado, comparación de pesos sin modificar criterios oficiales y adjudicación por ítem con una orden por proveedor, presupuesto global y guardado transaccional. Los clientes web/móvil todavía deben incorporar las pantallas de estas historias. Aplicar las nuevas migraciones antes de utilizarlas.

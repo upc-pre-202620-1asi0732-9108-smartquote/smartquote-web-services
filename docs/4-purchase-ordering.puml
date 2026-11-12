@@ -23,6 +23,15 @@ package "Shared (generic)" #F2F2F2 {
 }
 
 package "PurchaseOrdering.Interfaces" #EADCF8 {
+    class OrderingPoliciesController <<ASP.NET Core Controller>> {
+        + Suppliers(status, page, pageSize)
+        + Enable(supplierId, resource)
+        + Suspend(supplierId, resource)
+        + Reactivate(supplierId, resource)
+        + Put(requestId, resource)
+        + Budget(requestId)
+        + Check(runId, quotationId)
+    }
     class PurchaseOrdersController <<ASP.NET Core Controller>> {
         + ApproveAndGenerate(runId, quotationId, request): ActionResult
         + GetById(purchaseOrderId): ActionResult
@@ -31,6 +40,21 @@ package "PurchaseOrdering.Interfaces" #EADCF8 {
 }
 
 package "PurchaseOrdering.Application" #DCEEFF {
+    class OrderingPolicyService <<Application Service>> {
+        + DecideSupplierAsync(id, action, reason, expectedVersion)
+        + PutBudgetAsync(requestId, amount, currency, reason, expectedVersion)
+        + GetBudgetAsync(requestId)
+        + CheckBudgetAsync(runId, quotationId)
+        + Assess(snapshot, budget): BudgetAssessment
+    }
+    class SupplierDirectoryService <<Published Service>> {
+        + RegisterIdentifiedAsync(taxIdentifier, businessName): UUID
+        + GetEligibilityAsync(identifiers): IReadOnlyList
+    }
+    interface ISupplierDirectory <<Published Contract>>
+    interface IOrderingPolicyStore <<Port>>
+    interface IOrderingPolicyLease <<Transactional Port>>
+    interface IOrderingRequestReader <<Port>>
     class PurchaseOrderApplicationService <<Application Service>> {
         + ApproveAndGenerate(command): PurchaseOrder
         + GetById(purchaseOrderId): PurchaseOrderView
@@ -55,6 +79,7 @@ package "PurchaseOrdering.Application" #DCEEFF {
 
 package "Contract from Evaluation & Simulation" #F2F2F2 {
     interface ISimulationDecisionReader <<Imported Contract>> {
+        + GetSourceReferenceAsync(runId, quotationId): SimulationDecisionReference
         + GetApprovedSnapshot(runId, quotationId): ApprovedSimulationSnapshot
     }
 
@@ -69,10 +94,67 @@ package "Contract from Evaluation & Simulation" #F2F2F2 {
         + DeliveryTerms: string
         + InputFingerprint: string
         + IsCurrent: bool
+        + ExchangeRate: ApprovedExchangeRateSnapshot?
+        + ComparableTotalPen: decimal?
     }
 }
 
 package "PurchaseOrdering.Domain" #DFF2E1 {
+    class SupplierAccount <<Aggregate Root>> {
+        + Id: UUID
+        + TaxIdentifier: string
+        + BusinessName: string
+        + Status: string
+        + Version: long
+        + CreatedAt: DateTimeOffset
+        + Register(taxIdentifier, businessName, now): SupplierAccount
+        + Decide(action, reason, actorId, now)
+    }
+    class SupplierEligibilityEntry <<Immutable History>> {
+        + PreviousStatus: string
+        + NewStatus: string
+        + DecidedBy: UUID
+        + DecidedAt: DateTimeOffset
+        + Reason: string
+        + Version: long
+    }
+    class PurchaseBudget <<Aggregate Root>> {
+        + RequestId: UUID
+        + AmountPen: decimal
+        + Version: long
+        + Create(requestId, amount, currency, reason, actorId, now): PurchaseBudget
+        + Revise(amount, currency, reason, actorId, now)
+    }
+    class PurchaseBudgetRevision <<Immutable History>> {
+        + Version: long
+        + AmountPen: decimal
+        + AuthorizedBy: UUID
+        + AuthorizedAt: DateTimeOffset
+        + Reason: string
+    }
+    class BudgetAssessment <<Value Object>> {
+        + Status: string
+        + BudgetVersion: long?
+        + BudgetAmountPen: decimal?
+        + TotalPen: decimal
+        + MarginPen: decimal?
+        + ExcessPen: decimal?
+        + CanApprove: bool
+        + Evaluate(version, limit, decisionAmountsPen): BudgetAssessment
+    }
+    class ApprovalPolicyEvidence <<Immutable Value Object>> {
+        + SupplierAccountId: UUID
+        + SupplierEligibilityVersion: long
+        + BudgetVersion: long?
+        + BudgetAmountPen: decimal?
+        + TotalPen: decimal
+        + MarginPen: decimal?
+        + ExchangeRate: decimal?
+        + ExchangeRateSource: string?
+        + RateType: string?
+        + RatePublishedOn: DateOnly?
+        + RateRetrievedAt: DateTimeOffset?
+    }
     class PurchaseOrder <<Aggregate Root>> {
         - Id: PurchaseOrderId
         - OrderNumber: OrderNumber
@@ -83,10 +165,12 @@ package "PurchaseOrdering.Domain" #DFF2E1 {
         - Currency: string
         - DeliveryTerms: DeliveryTerms
         - CreatedAt: DateTimeOffset
+        + PolicyEvidence: ApprovalPolicyEvidence?
         + Create(number, decision, approval): PurchaseOrder
         + AddLine(line): void
         + Issue(): void
         + CalculateTotal(): Money
+        + RecordPolicyEvidence(evidence): void
     }
 
     class PurchaseOrderLine <<Entity>> {
@@ -94,14 +178,17 @@ package "PurchaseOrdering.Domain" #DFF2E1 {
         - Description: string
         - Quantity: decimal
         - UnitOfMeasure: string
-        - UnitPrice: Money
+        - UnitPrice: decimal
+        + SourceQuotationId: string?
+        + OriginalCurrency: string?
+        + OriginalUnitPrice: decimal?
         + CalculateSubtotal(): Money
     }
 
     class ApprovedPurchaseDecision <<Value Object>> {
         + SimulationRunId: string
         + PurchaseRequestId: string
-        + QuotationId: string
+        + QuotationId: string?
         + Supplier: SupplierSnapshot
         + Currency: string
         + Lines: IReadOnlyList
@@ -131,7 +218,7 @@ package "PurchaseOrdering.Domain" #DFF2E1 {
     class SourceSimulationReference <<Value Object>> {
         + SimulationRunId: string
         + PurchaseRequestId: string
-        + QuotationId: string
+        + QuotationId: string?
         + InputFingerprint: string
     }
 
@@ -228,15 +315,108 @@ note right of PurchaseOrder
   - Todas las líneas usan la misma moneda.
   - Conserva la solicitud, cotización y
     simulación que originaron la decisión.
-  - Una decisión solo produce una orden.
+  - Una orden pertenece a una adjudicación.
+  - En distribución, QuotationId de cabecera es null;
+    se conserva la cotización de origen por línea.
 end note
 
 note bottom of PostgreSqlPurchaseOrderRepository
   La base de datos debe tener restricciones
-  únicas para SimulationRunId e IdempotencyKey.
+  únicas para número e IdempotencyKey.
+  La adjudicación es única por solicitud/simulación;
+  la orden es única por adjudicación/proveedor.
 
   La comprobación de aplicación y la restricción
   de persistencia protegen contra concurrencia.
+end note
+
+OrderingPoliciesController --> OrderingPolicyService
+OrderingPolicyService --> IOrderingPolicyStore
+OrderingPolicyService --> IOrderingRequestReader
+OrderingPolicyService --> ISimulationDecisionReader
+OrderingPolicyService ..> BudgetAssessment
+SupplierDirectoryService ..|> ISupplierDirectory
+SupplierDirectoryService --> IOrderingPolicyStore
+PurchaseOrderApplicationService --> IOrderingPolicyStore
+IOrderingPolicyStore ..> IOrderingPolicyLease
+SupplierAccount *-- "0..*" SupplierEligibilityEntry
+PurchaseBudget *-- "1..*" PurchaseBudgetRevision
+PurchaseOrder *-- "0..1" ApprovalPolicyEvidence
+
+note bottom of BudgetAssessment
+  Contrasta la suma de toda la adquisición.
+  La ausencia de presupuesto no equivale a cero.
+  USD conserva la tasa oficial de la simulación;
+  no se consulta otra tasa al aprobar.
+end note
+
+package "PurchaseOrdering.Domain" {
+    class PurchaseAward <<Aggregate>> {
+        + Id: UUID
+        + RequestId: UUID
+        + SimulationRunId: UUID
+        + Mode: string
+        + InputFingerprint: string
+        + IdempotencyKey: string
+        + RequestHash: string
+        + ApprovedBy: UUID
+        + ApprovedAt: DateTimeOffset
+        + TotalPen: decimal
+        + BudgetVersion: long?
+        + BudgetAmountPen: decimal?
+        + BudgetMarginPen: decimal?
+        + ExchangeRate: decimal?
+        + ExchangeRateSource: string?
+        + RatePublishedOn: DateOnly?
+        + RateRetrievedAt: DateTimeOffset?
+        + Allocations: IReadOnlyList
+    }
+    class AwardAllocation <<Immutable Value>> {
+        + RequestedItemId: UUID
+        + SupplierId: UUID
+        + QuotationId: UUID
+        + QuotationLineId: UUID
+        + Quantity: decimal
+        + OriginalCurrency: string
+        + OriginalUnitPrice: decimal
+        + UnitPricePen: decimal
+        + AmountPen: decimal
+    }
+}
+package "PurchaseOrdering.Application" {
+    class PurchaseAwardApplicationService {
+        + ApproveAsync(runId, key, command): PurchaseAwardExecution
+        + GetAsync(id): PurchaseAwardView
+        + GetForRequestAsync(requestId): PurchaseAwardView
+        + CheckBudgetAsync(runId)
+    }
+    interface IPurchaseAwardStore <<Port>>
+    interface IDistributedDecisionReader <<Imported Published DTO Contract>>
+    interface IAtomicAwardCommitter <<Transactional Port>> {
+        + PrepareAsync(requestId, reference, events, validateLockedDecision)
+        + AfterCommitAsync()
+    }
+}
+package "API Integration Infrastructure" {
+    class AtomicAwardCommitter <<Cross-Context EF Transaction>>
+    class OrderingOutboxDispatcher <<Durable Background Delivery>>
+}
+PurchaseAward *-- AwardAllocation
+PurchaseAward "1" -- "1..*" PurchaseOrder : AwardId
+PurchaseAwardApplicationService --> IPurchaseAwardStore
+PurchaseAwardApplicationService --> IOrderingPolicyStore
+PurchaseAwardApplicationService --> IAtomicAwardCommitter
+PurchaseAwardApplicationService --> IDistributedDecisionReader
+PurchaseOrderApplicationService --> IAtomicAwardCommitter
+AtomicAwardCommitter ..|> IAtomicAwardCommitter
+AtomicAwardCommitter --> OrderingOutboxDispatcher : after commit
+note bottom of PurchaseAward
+  US21: exactly one award per purchase request.
+  One distributed PEN order per winning supplier;
+  complete coverage, current authorization and global budget.
+  Same key/body returns the exact order set; different body conflicts.
+  Orders, award, request transition and outbox share one transaction.
+  No partial issuance, even if a later insert/transition fails.
 end note
 
 @enduml

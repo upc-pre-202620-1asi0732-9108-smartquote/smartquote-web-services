@@ -18,7 +18,8 @@ public record PoultryQuoteView(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     IReadOnlyList<QuotationLineView> Lines,
-    IReadOnlyList<ExtractedFieldView> Fields);
+    IReadOnlyList<ExtractedFieldView> Fields,
+    bool IsCurrent = false, string CommercialStatus = "NotVerified");
 
 public record QuotationLineView(
     Guid LineId,

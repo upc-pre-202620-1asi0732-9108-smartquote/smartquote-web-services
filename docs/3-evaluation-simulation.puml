@@ -80,6 +80,7 @@ package "EvaluationSimulation.Application" #DCEEFF {
     class PurchaseRequestSnapshot <<Imported DTO>> {
         + RequestId: string
         + Version: long
+        + TechnicalRevision: long
         + RequiredDate: DateOnly
         + Priority: string
         + Items: IReadOnlyList
@@ -104,6 +105,8 @@ package "EvaluationSimulation.Application" #DCEEFF {
         + DeliveryTerms: string
         + InputFingerprint: string
         + IsCurrent: bool
+        + ExchangeRate: ApprovedExchangeRateSnapshot?
+        + ComparableTotalPen: decimal?
     }
 }
 
@@ -112,6 +115,7 @@ package "EvaluationSimulation.Domain" #DFF2E1 {
         - Id: EvaluationScenarioId
         - RequestId: string
         - Version: int
+        - TechnicalRevision: long
         - Status: ScenarioStatus
         - CreatedBy: UserId
         - CreatedAt: DateTimeOffset
@@ -120,6 +124,7 @@ package "EvaluationSimulation.Domain" #DFF2E1 {
         + Activate(): void
         + CreateNextVersion(): EvaluationScenario
         + ValidateWeights(): void
+        + BindTechnicalRevision(revision): void
     }
 
     class EvaluationCriterion <<Entity>> {
@@ -141,6 +146,8 @@ package "EvaluationSimulation.Domain" #DFF2E1 {
         - CriteriaVersion: int
         - InputFingerprint: InputFingerprint
         - ExecutedAt: DateTimeOffset
+        + Mode: string
+        + Distribution: DistributedSimulationResult?
         + AddEvaluation(evaluation): void
         + DefineRecommendation(): void
         + GetEvaluation(quotationId): QuotationEvaluation
@@ -166,7 +173,7 @@ package "EvaluationSimulation.Domain" #DFF2E1 {
     }
 
     class ExclusionReason <<Value Object>> {
-        + CriterionId: EvaluationCriterionId
+        + CriterionId: EvaluationCriterionId?
         + Code: string
         + Explanation: string
     }
@@ -195,6 +202,7 @@ package "EvaluationSimulation.Domain" #DFF2E1 {
     class RequestEvaluationSnapshot <<Value Object>> {
         + RequestId: string
         + Version: long
+        + TechnicalRevision: long
         + RequiredDate: DateOnly
         + Priority: string
         + Requirements: IReadOnlyList
@@ -204,6 +212,10 @@ package "EvaluationSimulation.Domain" #DFF2E1 {
         + QuotationId: string
         + Version: long
         + Supplier: string
+        + SupplierAccountId: UUID?
+        + SupplierEligibilityStatus: string?
+        + SupplierEligibilityVersion: long
+        + ValidUntil: DateOnly?
         + Lines: IReadOnlyList
         + TotalPrice(): Money
         + DeliveryLeadTimeDays: int
@@ -346,6 +358,101 @@ note bottom of SimulationRun
 
   Con el mismo fingerprint y las mismas reglas,
   el resultado debe ser determinista.
+end note
+
+package "EvaluationSimulation.Application" {
+    interface ISupplierEligibilityReader <<Port>> {
+        + ReadAsync(taxIdentifiers): IReadOnlyList
+    }
+}
+SimulationApplicationService --> ISupplierEligibilityReader
+SimulationValidityService --> ISupplierEligibilityReader
+
+package "EvaluationSimulation.Domain" {
+    class SensitivityAnalysis <<Aggregate>> {
+        + Id: UUID
+        + ScenarioId: UUID
+        + RequestId: string
+        + CriteriaVersion: int
+        + InputFingerprint: string
+        + CreatedBy: UUID
+        + CreatedAt: DateTimeOffset
+        + Inputs: SensitivityInputEvidence
+        + ExchangeRate: ExchangeRateSnapshot?
+        + Configurations: IReadOnlyList
+    }
+    class SensitivityConfiguration <<Immutable Evidence>> {
+        + Id: UUID
+        + Weights: IReadOnlyList
+        + Results: IReadOnlyList
+        + TiedWinnerIds: IReadOnlyList
+        + RecommendedQuotationId: string?
+    }
+    class DistributedSimulationEngine <<Domain Service>> {
+        + Evaluate(scenario, dataset, rate, today): DistributedSimulationResult
+    }
+    class DistributedSimulationResult <<Immutable Value>> {
+        + CanApprove: bool
+        + UncoveredItemIds: IReadOnlyList
+        + Allocations: IReadOnlyList
+        + Candidates: IReadOnlyList
+        + TotalPen: decimal
+    }
+    class DistributedAllocation <<Immutable Value>> {
+        + RequestedItemId: string
+        + QuotationId: string
+        + QuotationLineId: string
+        + SupplierAccountId: UUID
+        + SupplierEligibilityVersion: long
+        + Quantity: decimal
+        + UnitOfMeasure: string
+        + OriginalCurrency: string
+        + OriginalUnitPrice: decimal
+        + OriginalTotal: decimal
+        + UnitPricePen: decimal
+        + AmountPen: decimal
+        + Score: decimal
+        + DeliveryLeadTimeDays: int
+    }
+}
+package "EvaluationSimulation.Application" {
+    class EvaluationPreparationService
+    class SensitivityAnalysisService {
+        + CreateAsync(scenarioId, alternatives)
+        + GetAsync(id)
+        + ListAsync(requestId)
+        + PromoteAsync(analysisId, configurationId, expectedCriteriaVersion)
+    }
+    class DistributedSimulationService {
+        + RunAsync(scenarioId)
+        + ReadCurrentAsync(runId): DistributedDecisionSnapshot
+    }
+    interface IAdvancedEvaluationStore <<Port>>
+    interface IDistributedDecisionReader <<Published DTO Contract>>
+}
+SensitivityAnalysis *-- SensitivityConfiguration
+SensitivityAnalysisService --> EvaluationPreparationService
+SensitivityAnalysisService --> SimulationEngine : same eligibility and scoring
+SensitivityAnalysisService --> IAdvancedEvaluationStore
+SensitivityAnalysisService --> SensitivityAnalysis
+DistributedSimulationService --> EvaluationPreparationService
+DistributedSimulationService --> DistributedSimulationEngine
+DistributedSimulationService --> SimulationValidityService
+DistributedSimulationService ..|> IDistributedDecisionReader
+DistributedSimulationEngine --> SimulationEngine : scoped item candidates
+SimulationRun *-- "0..1" DistributedSimulationResult
+DistributedSimulationResult *-- DistributedAllocation
+note bottom of SensitivityAnalysis
+  US19: independent of SimulationRun.
+  Same captured inputs/rate for every configuration.
+  Only explicit atomic promotion creates an official
+  scenario version and simulation; never an order.
+end note
+note bottom of DistributedSimulationResult
+  US21: complete quantity from one supplier per item.
+  Mandatory rules are scoped to their requested item.
+  No implicit unit conversions or quantity splitting.
+  SimulationRun.Mode: SingleSupplier | DistributedByItem.
 end note
 
 @enduml

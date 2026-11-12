@@ -36,7 +36,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         catch (ConflictException exception)
         {
             logger.LogWarning(exception, "State conflict on {Path}", context.Request.Path);
-            await WriteProblemAsync(context, HttpStatusCode.Conflict, "state_conflict", "State conflict", exception.Message);
+            await WriteProblemAsync(context, HttpStatusCode.Conflict, exception.Code, "State conflict", exception.Message, exception.Details);
         }
         catch (UnsupportedContentTypeException exception)
         {
@@ -99,7 +99,8 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         HttpStatusCode status,
         string code,
         string title,
-        string detail)
+        string detail,
+        IReadOnlyDictionary<string, object?>? details = null)
     {
         context.Response.StatusCode = (int)status;
         context.Response.ContentType = "application/problem+json";
@@ -113,6 +114,8 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         };
         problem.Extensions["code"] = code;
         problem.Extensions["traceId"] = context.TraceIdentifier;
+        if (details is not null)
+            foreach (var entry in details) problem.Extensions[entry.Key] = entry.Value;
 
         return context.Response.WriteAsync(JsonSerializer.Serialize(problem, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
     }

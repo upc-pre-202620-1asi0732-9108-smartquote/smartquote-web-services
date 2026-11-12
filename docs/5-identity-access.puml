@@ -48,6 +48,17 @@ package "Domain" {
 }
 
 package "Application" {
+  interface IUserDirectory <<Published Contract>> {
+    +GetAsync(userId) : DirectoryUser
+    +ListActiveAnalystsAsync(page, pageSize) : IReadOnlyList
+  }
+  class DirectoryUser <<Immutable DTO>> {
+    +Guid UserId
+    +string DisplayName
+    +string Email
+    +bool IsActive
+    +IReadOnlyList Roles
+  }
   class AuthenticationService {
     +LoginAsync(command) : AuthenticatedSession
     +RefreshAsync(rawToken) : AuthenticatedSession
@@ -81,6 +92,9 @@ package "Application" {
 }
 
 package "Infrastructure" {
+  class UserDirectory
+  UserDirectory ..|> IUserDirectory
+  UserDirectory --> IdentityAccessDbContext
   class IdentityAccessDbContext <<EF Core DbContext>>
   class UserAccountRepository
   class RefreshSessionRepository
@@ -95,6 +109,10 @@ package "Infrastructure" {
 }
 
 package "Interfaces" {
+  class UsersController <<REST Controller>> {
+    +GET /api/v1/iam/users
+  }
+  UsersController --> IUserDirectory
   class AuthController <<REST Controller>> {
     +POST /api/v1/iam/auth/login
     +POST /api/v1/iam/auth/refresh

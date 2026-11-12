@@ -15,6 +15,15 @@ public class TechnicalRequirement
 
     private TechnicalRequirement() { }
 
+    internal void Revise(TechnicalRequirement replacement)
+    {
+        Name = replacement.Name;
+        Operator = replacement.Operator;
+        ExpectedValue = replacement.ExpectedValue;
+        UnitOfMeasure = replacement.UnitOfMeasure;
+        IsMandatory = replacement.IsMandatory;
+    }
+
     private TechnicalRequirement(
         TechnicalRequirementId id,
         string name,

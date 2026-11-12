@@ -82,7 +82,7 @@ public sealed class UserStoryAcceptanceTests
     }
 
     // PostgreSQL conserva microsegundos; comparar números y fechas, no su formato JSON.
-    private static void AssertEquivalentJson(JsonElement expected, JsonElement actual)
+    internal static void AssertEquivalentJson(JsonElement expected, JsonElement actual)
     {
         Assert.Equal(expected.ValueKind, actual.ValueKind);
         switch (expected.ValueKind)
@@ -182,7 +182,7 @@ public sealed class UserStoryAcceptanceTests
         using var f = new StoryFlow(); await f.Create(true); var quote = await f.Quote("normal.pdf", false);
         Assert.Equal(f.RequestId.ToString(), quote.GetProperty("requestId").GetString());
         Assert.Equal("Supplier normal.pdf", quote.GetProperty("supplierBusinessName").GetString());
-        Assert.Equal("20123456789", quote.GetProperty("supplierTaxIdentifier").GetString());
+        Assert.Equal(f.Factory.SupplierTaxIdentifier, quote.GetProperty("supplierTaxIdentifier").GetString());
         Assert.Equal("PEN", quote.GetProperty("currency").GetString());
         Assert.Equal(3, quote.GetProperty("deliveryLeadTimeDays").GetInt32());
         Assert.Equal(1000m, quote.GetProperty("lines")[0].GetProperty("quantity").GetDecimal());
@@ -355,7 +355,7 @@ public sealed class UserStoryAcceptanceTests
         var evaluation = await StoryFlow.Json(await f.Analyst.PostAsJsonAsync(path, input), HttpStatusCode.Created);
         Assert.Equal(f.AnalystId, evaluation.GetProperty("evaluatedBy").GetGuid()); Assert.Equal(id, evaluation.GetProperty("purchaseOrderId").GetGuid());
         using var duplicate = await f.Analyst.PostAsJsonAsync(path, input); Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
-        var history = await StoryFlow.Json(await f.Analyst.GetAsync("/api/v1/suppliers/20123456789/performance"));
+        var history = await StoryFlow.Json(await f.Analyst.GetAsync($"/api/v1/suppliers/{f.Factory.SupplierTaxIdentifier}/performance"));
         Assert.Contains(history.GetProperty("evaluations").EnumerateArray(), e => e.GetProperty("purchaseOrderId").GetGuid() == id && e.GetProperty("observations").GetString() == "Entrega conforme");
         var rows = history.GetProperty("evaluations").EnumerateArray().ToArray();
         Assert.Equal(rows.Length, history.GetProperty("evaluationCount").GetInt32());
